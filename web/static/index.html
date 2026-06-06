@@ -666,7 +666,7 @@
 
       <div class="chart-panel">
         <div class="chart-header">
-          <div class="chart-title">Confidence Timeline <span class="tip" data-tip="Cosine similarity between the query embedding and the response embedding, computed locally with a sentence transformer (all-MiniLM-L6-v2). Mirrors the paper's signal: high when the response stays semantically aligned with the query, lower when it drifts off-topic. No API call — pure math." style="font-size:11px;">ⓘ</span></div>
+          <div class="chart-title">Confidence Timeline <span class="tip" data-tip="Cosine similarity between the query embedding and the top-matching document in a reference corpus — exactly the paper's signal. High when the query maps to a known concept, lower when it drifts to unfamiliar territory. The corpus ships with the tool; swap it for a domain-specific one in data/corpus/." style="font-size:11px;">ⓘ</span></div>
           <div class="chart-legend">
             <div class="legend-item">
               <div class="legend-dot" style="background:var(--blue)"></div>

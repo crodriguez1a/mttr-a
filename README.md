@@ -128,7 +128,16 @@ NRR_α    = 1 − (MedTTR-A + k·σ) / MTBF ← risk-adjusted, Cantelli bound
 
 The `Episode` schema is entirely provider-agnostic. Timing comes from `time.perf_counter()` at the system level, so Bedrock, Azure OpenAI, and Vertex AI all produce structurally identical records.
 
-The one model-varying input is **confidence**, normalized to `[0, 1]` via the two-call self-evaluation pattern in every provider (`providers.py`): the model first answers the query, then rates its own confidence as a decimal. This avoids any dependency on logprobs (log-probabilities — per-token confidence scores that some models expose but others do not), temperature (a parameter that controls how predictable vs. creative the model's outputs are), or model-specific scoring APIs, which differ across providers and model versions. The cost is one extra LLM call per episode.
+The one model-varying input is **confidence**, normalized to `[0, 1]` via retrieval-based scoring — exactly the signal the paper defines. The paper uses `cos(query, retrieved_doc)` from the AG News corpus. This implementation ships a bundled reference corpus in `data/corpus/documents.txt` covering distributed systems, databases, algorithms, ML/AI, software engineering, networking, security, SRE, agent systems, and general reasoning.
+
+For each episode, real providers (`providers.py`):
+1. Embed the query with `all-MiniLM-L6-v2` (sentence-transformers, runs locally — no API call).
+2. Retrieve the top-matching document from the corpus by dot-product over pre-computed, L2-normalised embeddings.
+3. Return `cos(query_emb, top_doc_emb)` as the confidence score — high when the query maps to a well-represented concept, lower when it drifts to unfamiliar territory.
+
+`MockProvider` simulates this distribution with a Gaussian (`N(0.65, 0.15) + N(0.0, 0.05)`), so the full pipeline runs without a corpus, embedding model, or API keys. The Gaussian parameters are tunable in `data/mock_config/config.json`.
+
+To measure MTTR-A against a domain-specific system, replace `data/corpus/documents.txt` with documents representative of your production query space (one document per line, `#` for comments). No code changes needed.
 
 For valid cross-model comparison, hold `drift_threshold`, `seed`, and `QUERY_POOL` constant across runs.
 

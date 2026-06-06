@@ -29,7 +29,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from mttr_a import BenchmarkConfig, MockProvider, ProductionRunner, ProviderConfig, ProviderKind
-from mttr_a.providers import embedding_confidence
+from mttr_a.providers import retrieval_confidence
 from mttr_a.sinks import TelemetrySink
 from mttr_a_simulation import Episode
 
@@ -127,7 +127,7 @@ def _build_provider(kind: str, cfg: ProviderConfig, api_key: str):
                 answer = _llm.invoke([HumanMessage(content=query)])
                 return LLMResponse(
                     content=answer.content,
-                    confidence=embedding_confidence(query, answer.content),
+                    confidence=retrieval_confidence(query),
                     latency_s=_t.perf_counter() - t0,
                 )
 
@@ -158,7 +158,7 @@ def _build_provider(kind: str, cfg: ProviderConfig, api_key: str):
                 answer = _llm.invoke([HumanMessage(content=query)])
                 return LLMResponse(
                     content=answer.content,
-                    confidence=embedding_confidence(query, answer.content),
+                    confidence=retrieval_confidence(query),
                     latency_s=_t.perf_counter() - t0,
                 )
 
@@ -189,7 +189,7 @@ def _build_provider(kind: str, cfg: ProviderConfig, api_key: str):
                 answer = _llm.invoke([HumanMessage(content=query)])
                 return LLMResponse(
                     content=answer.content,
-                    confidence=embedding_confidence(query, answer.content),
+                    confidence=retrieval_confidence(query),
                     latency_s=_t.perf_counter() - t0,
                 )
 

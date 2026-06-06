@@ -7,16 +7,20 @@ Swapping providers is a one-line config change — the graph nodes are provider-
 
 Confidence strategy
 -------------------
-  Mock     — sampled from N(0.65, 0.15), no real call
-  Real     — cosine similarity between query and response embeddings,
-             computed locally with sentence-transformers (all-MiniLM-L6-v2).
+  Mock     — sampled from N(0.65, 0.15) + N(0.0, 0.05), clamped to [0, 1].
+             This Gaussian simulates the distribution of retrieval-confidence
+             scores (cos(query, top_doc)) that a real pipeline would produce —
+             no corpus or embedding call is needed for mock runs.
+             Parameters are tunable in data/mock_config/config.json.
 
-             cos(query_emb, response_emb) mirrors the paper's retrieval-based
-             signal (cos(query, retrieved_doc)) — high when the response stays
-             semantically aligned with the query, lower when it drifts off-topic.
+  Real     — retrieval_confidence(query): the paper's exact signal.
+             Embeds the query with all-MiniLM-L6-v2, finds the top-matching
+             document in data/corpus/documents.txt, and returns the cosine
+             similarity cos(query_emb, top_doc_emb).
 
-             The embedding model is lazy-loaded on first use and shared across
-             all provider instances. Requires: pip install sentence-transformers
+             Corpus embeddings are pre-computed and L2-normalised on first use,
+             so retrieval is a single matrix–vector dot product after warm-up.
+             Requires: pip install sentence-transformers
 """
 
 from __future__ import annotations
@@ -44,7 +48,7 @@ _MOCK_LATENCY: dict[str, tuple[float, float]] = {
 }
 _TTFT_FRACTION: float = _MOCK_CFG["ttft_fraction"]["value"]
 
-# ── Embedding-based confidence ─────────────────────────────────────────────────
+# ── Retrieval-based confidence (paper's exact signal) ─────────────────────────
 
 _embed_model = None  # lazy-loaded, shared across all provider instances
 
@@ -55,26 +59,51 @@ def _get_embed_model():
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:
             raise ImportError(
-                "Embedding confidence requires sentence-transformers: "
+                "Retrieval confidence requires sentence-transformers: "
                 "pip install sentence-transformers"
             ) from exc
         _embed_model = SentenceTransformer("all-MiniLM-L6-v2")
     return _embed_model
 
-def embedding_confidence(query: str, response: str) -> float:
-    """
-    Cosine similarity between query and response embeddings.
 
-    Mirrors the paper's retrieval signal cos(q, d_top): high when the
-    response is semantically aligned with the query, lower when it drifts.
+_corpus_docs: list[str] | None = None
+_corpus_embs = None  # shape (n_docs, dim), L2-normalized
+
+
+def _load_corpus() -> list[str]:
+    path = _DATA_DIR / "corpus" / "documents.txt"
+    return [l.strip() for l in path.read_text().splitlines()
+            if l.strip() and not l.startswith("#")]
+
+
+def _get_corpus_embs():
+    global _corpus_docs, _corpus_embs
+    if _corpus_embs is None:
+        import numpy as np
+        model = _get_embed_model()
+        _corpus_docs = _load_corpus()
+        embs = model.encode(_corpus_docs, convert_to_numpy=True)
+        norms = np.linalg.norm(embs, axis=1, keepdims=True)
+        _corpus_embs = embs / (norms + 1e-9)
+    return _corpus_embs
+
+
+def retrieval_confidence(query: str) -> float:
+    """
+    Cosine similarity between the query embedding and the top-matching document
+    in data/corpus/documents.txt — exactly the paper's confidence signal.
+
+    cos(query_emb, top_doc_emb): high when the query maps to a well-represented
+    concept in the corpus, lower when it drifts to unfamiliar territory.
     Returns a value in [0, 1].
+
+    Corpus embeddings are pre-computed and cached on first call.
     """
     import numpy as np
     model = _get_embed_model()
-    vecs = model.encode([query, response])
-    q, r = vecs[0], vecs[1]
-    cos = float(np.dot(q, r) / (np.linalg.norm(q) * np.linalg.norm(r) + 1e-9))
-    return max(0.0, min(1.0, cos))
+    q = model.encode([query], convert_to_numpy=True)
+    q = q / (np.linalg.norm(q) + 1e-9)
+    return float(max(0.0, min(1.0, (_get_corpus_embs() @ q.T).max())))
 
 
 @dataclass(frozen=True)
@@ -208,7 +237,7 @@ class BedrockProvider(BaseLLMProvider):
         latency = time.perf_counter() - t0
         return LLMResponse(
             content=answer.content,
-            confidence=embedding_confidence(query, answer.content),
+            confidence=retrieval_confidence(query),
             latency_s=latency,
         )
 
@@ -253,7 +282,7 @@ class AzureOpenAIProvider(BaseLLMProvider):
         latency = time.perf_counter() - t0
         return LLMResponse(
             content=answer.content,
-            confidence=embedding_confidence(query, answer.content),
+            confidence=retrieval_confidence(query),
             latency_s=latency,
         )
 
@@ -298,7 +327,7 @@ class VertexAIProvider(BaseLLMProvider):
         latency = time.perf_counter() - t0
         return LLMResponse(
             content=answer.content,
-            confidence=embedding_confidence(query, answer.content),
+            confidence=retrieval_confidence(query),
             latency_s=latency,
         )
 

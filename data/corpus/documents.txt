@@ -1,0 +1,123 @@
+# MTTR-A reference corpus — one document per line, # lines are comments.
+# Covers technical reasoning domains so any query finds a semantically close match.
+# Replace or extend this file with domain-specific documents for production measurement.
+# Format: one document per line, no blank lines between documents.
+#
+# Distributed systems / rate limiting / caching / queues
+A token-bucket rate limiter allows bursts up to a maximum capacity, then refills at a fixed rate, ensuring downstream services are never overwhelmed beyond a configurable ceiling.
+Leaky-bucket rate limiting smooths bursty traffic into a steady output stream by draining the bucket at a constant rate regardless of how quickly requests arrive.
+Distributed rate limiting across multiple nodes requires a shared counter, typically implemented with Redis INCR and TTL to enforce per-window request quotas without a single coordinator.
+A sliding-window log rate limiter stores precise request timestamps and counts entries within the rolling window, giving exact enforcement at the cost of higher memory usage.
+Cache eviction policies differ in trade-off: LRU (Least Recently Used) keeps frequently accessed items hot, while LFU (Least Frequently Used) prioritises items with high access counts across their lifetime.
+Write-through caches update the backing store on every write, ensuring consistency; write-back caches defer flushes for throughput at the risk of losing unsynced data on failure.
+A consistent-hashing ring distributes cache keys across nodes so that adding or removing a node remaps only a fraction of keys proportional to the ring arc, minimising cache misses.
+Message queues decouple producers from consumers, allowing each to scale independently; dead-letter queues capture messages that fail repeated delivery attempts for later inspection.
+Kafka partitions enable parallel consumption within a consumer group; each partition is consumed by exactly one consumer in the group, so adding partitions is the primary scaling lever.
+Circuit breakers prevent cascading failures by short-circuiting calls to a degraded downstream after a failure threshold is reached, then probing with limited traffic during the half-open state.
+Saga patterns coordinate distributed transactions by chaining local transactions with compensating rollback steps, avoiding the distributed locking overhead of two-phase commit.
+Back-pressure mechanisms signal producers to slow down when consumer queues approach capacity, preventing unbounded memory growth in high-throughput pipeline stages.
+#
+# Databases — indexes, transactions, sharding, replication, SQL
+A B-tree index maintains sorted keys in a balanced tree, providing O(log n) lookups, range scans, and ordered output without a full table scan.
+A hash index offers O(1) point lookups but cannot serve range queries, making it ideal for equality predicates on columns with high cardinality.
+MVCC (Multi-Version Concurrency Control) keeps multiple versions of rows to serve consistent reads without blocking writers, with old versions cleaned by a vacuum process.
+Two-phase commit ensures all nodes in a distributed transaction either commit or abort together; the coordinator sends a prepare message, waits for votes, then broadcasts the final decision.
+Sharding partitions table rows across multiple nodes by a shard key; cross-shard queries require scatter-gather fan-out, making shard key selection critical for query locality.
+Read replicas handle query load by asynchronously replicating writes from the primary; replication lag means replicas may serve slightly stale data, requiring clients to choose consistency level.
+A covering index includes all columns needed by a query so the database can answer it from the index alone without fetching the heap row, eliminating a second I/O per match.
+Query optimisers use statistics (histogram, distinct count, correlation) to estimate cardinality and choose the cheapest join order and access method for a given SQL statement.
+Write-ahead logging (WAL) ensures durability by persisting changes to an append-only log before modifying data pages; crash recovery replays the log to restore a consistent state.
+Connection pooling reuses database connections across requests to avoid the latency and resource cost of establishing a new TCP and TLS handshake for every query.
+Partial indexes index only rows matching a WHERE predicate, reducing index size and maintenance overhead when queries always filter on that condition.
+#
+# Algorithms — binary search, hashing, graph algorithms, dynamic programming, bloom filters
+Binary search finds a target in a sorted array in O(log n) by repeatedly halving the search space; it requires random access and a total order on elements.
+A Bloom filter uses k hash functions and a bit array to test set membership in O(k) with no false negatives; the false-positive rate is tunable by adjusting k and the array size.
+Dijkstra's algorithm finds shortest paths from a single source in a weighted graph with non-negative edges, using a priority queue to process nodes in order of increasing tentative distance.
+A* search extends Dijkstra with a heuristic that estimates the remaining cost to the goal, reducing the number of nodes expanded when the heuristic is admissible (never overestimates).
+Dynamic programming solves problems by memoising overlapping subproblems; the key insight is identifying the recurrence relation and ensuring each subproblem is solved only once.
+A skip list maintains multiple linked layers of sorted elements, providing O(log n) expected time for search, insert, and delete without the rebalancing logic of balanced trees.
+Consistent hashing maps both keys and nodes to a ring so that adding or removing a node only remaps the adjacent arc of keys, minimising redistribution in distributed systems.
+Topological sort orders nodes in a directed acyclic graph so that every edge points from earlier to later; Kahn's algorithm uses in-degree counts and a queue for a BFS-based approach.
+The union-find (disjoint-set) structure supports near-O(1) amortised union and find operations with path compression and union by rank, used in Kruskal's MST algorithm.
+Count-Min Sketch approximates frequency counts for items in a stream using a fixed-size two-dimensional array of counters, with bounded overestimation and no false negatives.
+#
+# Machine learning / AI — attention, transformers, embeddings, RAG, chain-of-thought, fine-tuning
+Self-attention computes a weighted sum of value vectors where weights are derived from dot products of query and key vectors, enabling each token to attend to all others in the sequence.
+Multi-head attention runs several attention functions in parallel and concatenates the results, allowing the model to jointly attend to information from different representation subspaces.
+Transformer positional encodings add sinusoidal signals to token embeddings so that the model can distinguish sequence positions, since attention itself is permutation-invariant.
+Retrieval-Augmented Generation (RAG) grounds model outputs by retrieving relevant documents from a corpus at inference time and conditioning the generation on those retrieved passages.
+Sentence embeddings map variable-length text to fixed-size dense vectors so that semantically similar texts cluster nearby in the embedding space under cosine or dot-product similarity.
+Chain-of-thought prompting elicits step-by-step reasoning from language models by including worked examples or the instruction "think step by step", improving accuracy on multi-step tasks.
+Fine-tuning adapts a pre-trained model to a specific task by continuing training on domain-specific data with a lower learning rate, updating all or a subset of model parameters.
+LoRA (Low-Rank Adaptation) injects trainable rank-decomposition matrices into frozen model layers, enabling parameter-efficient fine-tuning with far fewer trainable parameters than full fine-tuning.
+RLHF (Reinforcement Learning from Human Feedback) trains a reward model on human preferences and then uses PPO to fine-tune the language model to maximise that reward signal.
+Embedding models trained with contrastive learning push similar (query, document) pairs together and dissimilar pairs apart in the embedding space, learning dense retrieval representations.
+Vector databases store and index dense embeddings for approximate nearest-neighbour search using algorithms like HNSW or IVF, enabling millisecond-latency semantic retrieval at scale.
+Hallucination in language models occurs when the model generates plausible-sounding but factually incorrect text, often because the training distribution does not support the claim.
+#
+# Software engineering — TDD, CI/CD, microservices, API design, dependency injection
+Test-driven development writes failing tests before production code, ensuring each feature has executable specifications and that refactoring is safe because the test suite serves as a regression net.
+Continuous integration runs the full build and test suite on every commit, catching regressions early; continuous delivery extends this to automatically deploy passing builds to a staging environment.
+Microservices decompose an application into independently deployable services, each owning its data store, enabling teams to release and scale components without coordinating a monolithic deploy.
+RESTful API design uses HTTP verbs and resource-oriented URLs to create stateless interfaces; idempotent PUT and DELETE operations allow safe retries without duplicate side effects.
+Dependency injection decouples object construction from usage by passing dependencies as constructor arguments, making code testable and swappable without changing calling code.
+The strangler-fig pattern migrates a monolith by routing slices of traffic to new services incrementally, so both systems run in parallel until the legacy code can be retired safely.
+API versioning strategies include URI path versioning (/v1/), header versioning, and content negotiation, each with different trade-offs for client discoverability and cache friendliness.
+Contract testing verifies that a consumer and provider agree on the interface shape without running both services together, using tools like Pact to generate and validate contracts from consumer expectations.
+Feature flags decouple code deployment from feature release, allowing dark launches and A/B tests by toggling behaviour per user or cohort without a new deployment.
+#
+# Networking — TCP, TLS, DNS, HTTP/2, CDN
+TCP's three-way handshake establishes a connection before data transfer, adding one round-trip latency; TCP Fast Open caches the handshake token to reduce the cost on subsequent connections.
+TLS 1.3 reduces the handshake to one round trip (1-RTT) by including key shares in the client hello, and supports 0-RTT resumption for repeated connections at the cost of replay risk.
+DNS resolution walks the hierarchy from root servers to TLD servers to authoritative servers; negative caching stores NXDOMAIN responses to avoid repeated lookups for non-existent names.
+HTTP/2 multiplexes multiple streams over a single TCP connection, eliminating the head-of-line blocking between requests that affected HTTP/1.1 pipelining, and uses HPACK header compression.
+Content delivery networks cache static assets at edge nodes geographically close to users, reducing latency and origin load; cache-busting via hashed filenames ensures clients always get fresh assets.
+QUIC transports HTTP/3 over UDP, achieving 0-RTT connection establishment and eliminating TCP head-of-line blocking at the transport layer by handling packet loss per stream independently.
+Anycast routes traffic to the topologically nearest node in a cluster of servers sharing the same IP address, providing both geographic load balancing and DDoS mitigation without DNS changes.
+#
+# Security — OAuth, SQL injection, XSS, zero-trust, cryptography
+OAuth 2.0 delegates authorisation by issuing short-lived access tokens; the authorisation code flow with PKCE prevents interception of the redirect, making it safe for public clients.
+SQL injection occurs when user-supplied input is concatenated into SQL strings; parameterised queries (prepared statements) eliminate this by separating code from data at the protocol level.
+Cross-site scripting (XSS) injects malicious scripts into pages viewed by other users; Content Security Policy headers restrict which scripts the browser executes, and output encoding prevents reflection.
+Zero-trust security assumes no network perimeter and requires every request to be authenticated and authorised explicitly, regardless of whether it originates inside the corporate network.
+HMAC signs messages with a shared secret key by hashing the message concatenated with the key; the receiver recomputes the HMAC and compares it to detect tampering without encryption overhead.
+Certificate pinning associates a specific public key or certificate with a host, preventing man-in-the-middle attacks even if a rogue CA is trusted by the operating system's root store.
+CSRF tokens bind each form submission to the user's session by embedding a per-request secret; the server rejects requests where the token is absent or mismatched, blocking cross-origin forgeries.
+#
+# Reliability / SRE — SLOs, error budgets, chaos engineering, observability, MTTR
+A Service Level Objective (SLO) specifies a target reliability level (e.g. 99.9% of requests succeed in under 300 ms) against which the error budget is derived and consumed by risky changes.
+Error budgets convert an SLO into an allowable failure quota: a 99.9% SLO gives 43.8 minutes of allowable downtime per month; teams use budget burn rate to decide when to freeze deployments.
+Chaos engineering intentionally injects failures (network partitions, node kills, latency spikes) into production to validate that redundancy, retries, and alerting behave as designed.
+Observability is the ability to infer internal system state from external outputs — metrics, logs, and distributed traces — without instrumenting for specific known failure modes in advance.
+MTTR (Mean Time To Recovery) measures the average duration from fault detection to service restoration; reducing MTTR requires fast detection, automated remediation, and clear runbooks.
+Canary deployments route a small percentage of traffic to a new version and compare error rates and latency to the baseline before promoting the release to all traffic.
+Distributed tracing propagates a trace context (trace ID, span ID) through service calls, enabling reconstruction of the full request graph and identification of latency hotspots across services.
+#
+# Agent systems / LLM orchestration — LangGraph, tool use, cognitive drift, recovery reflexes
+LangGraph models multi-agent workflows as stateful directed graphs where nodes are functions and edges represent conditional control flow, enabling complex reasoning pipelines with loops and human-in-the-loop steps.
+Cognitive drift in LLM agents occurs when the model's reasoning progressively diverges from the original task intent, detectable as a drop in retrieval confidence below a calibrated threshold.
+Recovery reflexes are automated corrective actions triggered when drift is detected: auto-replan regenerates the reasoning plan, tool-retry re-invokes a failed tool, rollback restores a prior checkpoint.
+Tool-use agents call external functions (search, code execution, SQL) during generation; the model emits a structured tool call, the runtime executes it, and the result is appended to the conversation context.
+Retrieval-Augmented Generation agents interleave retrieval steps with generation, grounding each reasoning step in freshly retrieved evidence to reduce hallucination on knowledge-intensive tasks.
+Hallucination detection via retrieval confidence measures how well the model's query maps to a known concept in a reference corpus; low cosine similarity signals the query has drifted to unfamiliar territory.
+ReAct agents alternate Thought, Action, and Observation steps in a loop, allowing the model to reason about tool results before deciding the next action, improving grounded problem-solving.
+Agent memory architectures combine in-context working memory (the current conversation window), external episodic stores (past conversation summaries), and semantic stores (knowledge base embeddings).
+#
+# General reasoning — logic, Bayesian reasoning, causal inference, decision theory
+Bayes' theorem updates a prior belief P(H) with evidence P(E|H) to obtain the posterior P(H|E) ∝ P(E|H)·P(H), providing a principled framework for belief revision under uncertainty.
+Causal inference distinguishes correlation from causation by reasoning about interventions (do-calculus); observational data alone cannot identify causal effects without structural assumptions.
+Decision theory chooses actions to maximise expected utility by weighting each outcome's utility by its probability, making the implicit trade-off between risk and reward explicit.
+Counterfactual reasoning asks what would have happened under a different intervention, enabling root-cause analysis and attribution by reasoning about the causal model's alternative paths.
+Deductive reasoning derives conclusions that necessarily follow from premises; inductive reasoning generalises from observations with probabilistic confidence; abductive reasoning infers the best explanation.
+The conjunction fallacy occurs when people judge a conjunction P(A∧B) as more probable than a constituent P(B), violating probability axioms; it is a canonical example of representativeness bias.
+#
+# Programming concepts — recursion, concurrency, memory management, type systems
+Tail recursion converts a recursive call in tail position into a jump, allowing compilers to reuse the current stack frame and avoid stack overflow on deep recursions.
+Mutexes (mutual exclusion locks) prevent data races by ensuring only one thread holds the lock at a time; improper nesting of locks can cause deadlocks if threads acquire them in inconsistent order.
+Reference counting tracks the number of pointers to each heap object and frees it when the count reaches zero; cyclic references prevent collection and require cycle detection (e.g. Python's gc module).
+Garbage collection (mark-and-sweep) traces live objects from GC roots, marks all reachable objects, then sweeps the heap to reclaim unmarked memory, pausing the world during marking.
+Generics (parametric polymorphism) allow algorithms and data structures to be written once and instantiated at multiple types, with type safety checked at compile time rather than at runtime.
+Monads in functional programming sequence computations with effects (IO, optionality, error handling) by wrapping values and chaining transformations with bind (>>=), keeping functions pure.
+Lock-free data structures use atomic compare-and-swap (CAS) instructions to implement concurrent containers without mutexes, avoiding contention at the cost of more complex implementation.
+Async/await syntax desugars to state-machine coroutines; the runtime suspends the current task when it hits an await and resumes it when the awaited future completes, enabling cooperative multitasking.
