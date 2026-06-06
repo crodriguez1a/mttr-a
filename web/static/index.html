@@ -361,8 +361,9 @@
       border-radius: var(--radius);
       padding: 18px 16px 14px;
       position: relative;
-      overflow: hidden;
+      z-index: 1;
     }
+    .kpi:hover { z-index: 10; }
     .kpi::after {
       content: '';
       position: absolute;
@@ -668,7 +669,7 @@
 
       <div class="chart-panel">
         <div class="chart-header">
-          <div class="chart-title">Confidence Timeline</div>
+          <div class="chart-title">Confidence Timeline <span class="tip tip-left" data-tip="After each response, the model rates its own answer from 0 to 1. That self-assigned score is confidence. When it drops below the dashed threshold (τ_drift), a drift event is triggered and the recovery timer starts." style="font-size:11px;">ⓘ</span></div>
           <div class="chart-legend">
             <div class="legend-item">
               <div class="legend-dot" style="background:var(--blue)"></div>
