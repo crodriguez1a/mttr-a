@@ -53,6 +53,7 @@ notebook = [
 web = [
     "fastapi>=0.111",
     "uvicorn[standard]>=0.29",
+    "langchain-anthropic>=0.3",
 ]
 
 [project.scripts]

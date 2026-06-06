@@ -166,6 +166,22 @@
       font-weight: 500;
       color: var(--text-2);
     }
+    .field select {
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    .field select:focus { border-color: var(--blue); }
+    .field select option { background: var(--surface-2); }
+
     .field input[type="text"],
     .field input[type="password"],
     .field input[type="url"],
@@ -430,8 +446,33 @@
         <div class="section-label">Provider</div>
         <div class="provider-row">
           <button class="pill active" data-provider="mock" onclick="selectProvider(this)">Mock</button>
+          <button class="pill" data-provider="claude" onclick="selectProvider(this)">Claude</button>
           <button class="pill" data-provider="azure_openai" onclick="selectProvider(this)">Azure OpenAI</button>
         </div>
+      </div>
+
+      <div id="claude-fields" style="display:none;flex-direction:column;gap:12px;">
+        <div class="field">
+          <label>Model</label>
+          <select id="claude-model">
+            <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+            <option value="claude-haiku-4-5-20251001">claude-haiku-4-5</option>
+            <option value="claude-opus-4-7">claude-opus-4-7</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>API Key</label>
+          <div class="key-wrap">
+            <input type="password" id="claude-api-key" placeholder="sk-ant-…" autocomplete="off">
+            <button class="key-reveal" onclick="toggleClaudeKey()" title="Show / hide key">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="divider"></div>
       </div>
 
       <div id="azure-fields">
@@ -552,15 +593,19 @@
     document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
     el.classList.add('active');
     selectedProvider = el.dataset.provider;
-    const az = document.getElementById('azure-fields');
-    selectedProvider === 'azure_openai'
-      ? az.classList.add('visible')
-      : az.classList.remove('visible');
+    document.getElementById('azure-fields').style.display =
+      selectedProvider === 'azure_openai' ? 'flex' : 'none';
+    document.getElementById('claude-fields').style.display =
+      selectedProvider === 'claude' ? 'flex' : 'none';
   }
 
-  // ── Key reveal toggle ──────────────────────────────────────────────────────
+  // ── Key reveal toggles ─────────────────────────────────────────────────────
   function toggleKey() {
     const inp = document.getElementById('api-key');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+  function toggleClaudeKey() {
+    const inp = document.getElementById('claude-api-key');
     inp.type = inp.type === 'password' ? 'text' : 'password';
   }
 
@@ -717,6 +762,15 @@
       simulate_latency: true,
     };
 
+    if (selectedProvider === 'claude') {
+      body.claude_model = document.getElementById('claude-model').value;
+      body.api_key      = document.getElementById('claude-api-key').value;
+      if (!body.api_key) {
+        showError('API key is required for Claude.');
+        return;
+      }
+    }
+
     if (selectedProvider === 'azure_openai') {
       body.azure_endpoint   = document.getElementById('azure-endpoint').value.trim();
       body.azure_deployment = document.getElementById('azure-deployment').value.trim();
@@ -749,6 +803,9 @@
       if (body.api_key) body.api_key = '';
       if (selectedProvider === 'azure_openai') {
         document.getElementById('api-key').value = '';
+      }
+      if (selectedProvider === 'claude') {
+        document.getElementById('claude-api-key').value = '';
       }
     }
 

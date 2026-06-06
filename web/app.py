@@ -139,6 +139,43 @@ def _build_provider(kind: str, cfg: ProviderConfig, api_key: str):
 
         return _AzureProvider()
 
+    if kind == "claude":
+        try:
+            from langchain_anthropic import ChatAnthropic
+        except ImportError as exc:
+            raise RuntimeError(
+                "Claude provider requires langchain-anthropic: pip install langchain-anthropic"
+            ) from exc
+
+        from mttr_a.providers import BaseLLMProvider, LLMResponse
+        import time as _t
+
+        _llm = ChatAnthropic(
+            model=cfg.model_id,
+            api_key=api_key,
+            temperature=cfg.temperature,
+            max_tokens=cfg.max_tokens,
+        )
+        _prompt = _CONFIDENCE_PROMPT
+
+        class _ClaudeProvider(BaseLLMProvider):
+            def invoke(self, query: str, context: str = "") -> LLMResponse:
+                from langchain_core.messages import AIMessage, HumanMessage
+                t0 = _t.perf_counter()
+                answer = _llm.invoke([HumanMessage(content=query)])
+                conf = _llm.invoke([
+                    HumanMessage(content=query),
+                    AIMessage(content=answer.content),
+                    HumanMessage(content=_prompt),
+                ])
+                return LLMResponse(
+                    content=answer.content,
+                    confidence=_parse_confidence(conf.content),
+                    latency_s=_t.perf_counter() - t0,
+                )
+
+        return _ClaudeProvider()
+
     raise ValueError(f"Unsupported provider: {kind}")
 
 
@@ -177,6 +214,7 @@ class RunRequest(BaseModel):
     simulate_latency: bool = True
     azure_endpoint: str = ""
     azure_deployment: str = ""
+    claude_model: str = "claude-sonnet-4-6"
     api_key: str = ""
 
 
@@ -192,9 +230,11 @@ async def index() -> str:
 
 @app.post("/api/run")
 async def start_run(req: RunRequest):
-    kind_enum = ProviderKind.MOCK if req.provider == "mock" else ProviderKind.AZURE_OPENAI
+    kind_map = {"mock": ProviderKind.MOCK, "azure_openai": ProviderKind.AZURE_OPENAI}
+    kind_enum = kind_map.get(req.provider, ProviderKind.MOCK)
     provider_cfg = ProviderConfig(
         kind=kind_enum,
+        model_id=req.claude_model if req.provider == "claude" else "mock-model",
         mock_simulate_latency=req.simulate_latency,
         azure_endpoint=req.azure_endpoint,
         azure_deployment=req.azure_deployment,
