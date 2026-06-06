@@ -135,11 +135,11 @@
 
     /* provider pills */
     .provider-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 6px;
     }
     .pill {
-      flex: 1;
       padding: 8px 0;
       border: 1px solid var(--border-2);
       border-radius: var(--radius);
@@ -493,9 +493,34 @@
         <div class="section-label">Provider</div>
         <div class="provider-row">
           <button class="pill active" data-provider="mock" onclick="selectProvider(this)">Mock</button>
+          <button class="pill" data-provider="google" onclick="selectProvider(this)">Google</button>
           <button class="pill" data-provider="claude" onclick="selectProvider(this)">Claude</button>
           <button class="pill" data-provider="azure_openai" onclick="selectProvider(this)">Azure OpenAI</button>
         </div>
+      </div>
+
+      <div id="google-fields" style="display:none;flex-direction:column;gap:12px;">
+        <div class="field">
+          <label>Model</label>
+          <select id="google-model">
+            <option value="gemini-2.0-flash">gemini-2.0-flash (free tier)</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>API Key <span style="color:var(--muted);font-weight:400;">— aistudio.google.com</span></label>
+          <div class="key-wrap">
+            <input type="password" id="google-api-key" placeholder="AIza…" autocomplete="off">
+            <button class="key-reveal" onclick="toggleGoogleKey()" title="Show / hide key">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="divider"></div>
       </div>
 
       <div id="claude-fields" style="display:none;flex-direction:column;gap:12px;">
@@ -651,6 +676,7 @@
   // ── Provider selection ─────────────────────────────────────────────────────
   const PROVIDER_DESC = {
     mock:        'Local simulation · no API calls',
+    google:      'Live API calls · 2 per episode · free tier available',
     claude:      'Live API calls · 2 per episode · tokens billed',
     azure_openai:'Live API calls · 2 per episode · tokens billed',
   };
@@ -666,10 +692,12 @@
     document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
     el.classList.add('active');
     selectedProvider = el.dataset.provider;
-    document.getElementById('azure-fields').style.display =
-      selectedProvider === 'azure_openai' ? 'flex' : 'none';
+    document.getElementById('google-fields').style.display =
+      selectedProvider === 'google' ? 'flex' : 'none';
     document.getElementById('claude-fields').style.display =
       selectedProvider === 'claude' ? 'flex' : 'none';
+    document.getElementById('azure-fields').style.display =
+      selectedProvider === 'azure_openai' ? 'flex' : 'none';
     const desc = document.getElementById('run-desc');
     desc.textContent = PROVIDER_DESC[selectedProvider] || '';
     desc.className = 'run-desc' + (selectedProvider !== 'mock' ? ' live' : '');
@@ -694,6 +722,10 @@
   }
   function toggleClaudeKey() {
     const inp = document.getElementById('claude-api-key');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+  function toggleGoogleKey() {
+    const inp = document.getElementById('google-api-key');
     inp.type = inp.type === 'password' ? 'text' : 'password';
   }
 
@@ -851,6 +883,15 @@
       custom_prompt: document.getElementById('custom-prompt').value.trim(),
     };
 
+    if (selectedProvider === 'google') {
+      body.google_model = document.getElementById('google-model').value;
+      body.api_key      = document.getElementById('google-api-key').value;
+      if (!body.api_key) {
+        showError('API key is required. Get one free at aistudio.google.com.');
+        return;
+      }
+    }
+
     if (selectedProvider === 'claude') {
       body.claude_model = document.getElementById('claude-model').value;
       body.api_key      = document.getElementById('claude-api-key').value;
@@ -895,6 +936,9 @@
       }
       if (selectedProvider === 'claude') {
         document.getElementById('claude-api-key').value = '';
+      }
+      if (selectedProvider === 'google') {
+        document.getElementById('google-api-key').value = '';
       }
     }
 

@@ -176,6 +176,43 @@ def _build_provider(kind: str, cfg: ProviderConfig, api_key: str):
 
         return _ClaudeProvider()
 
+    if kind == "google":
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+        except ImportError as exc:
+            raise RuntimeError(
+                "Google provider requires langchain-google-genai: pip install langchain-google-genai"
+            ) from exc
+
+        from mttr_a.providers import BaseLLMProvider, LLMResponse
+        import time as _t
+
+        _llm = ChatGoogleGenerativeAI(
+            model=cfg.model_id,
+            google_api_key=api_key,
+            temperature=cfg.temperature,
+            max_output_tokens=cfg.max_tokens,
+        )
+        _prompt = _CONFIDENCE_PROMPT
+
+        class _GoogleProvider(BaseLLMProvider):
+            def invoke(self, query: str, context: str = "") -> LLMResponse:
+                from langchain_core.messages import AIMessage, HumanMessage
+                t0 = _t.perf_counter()
+                answer = _llm.invoke([HumanMessage(content=query)])
+                conf = _llm.invoke([
+                    HumanMessage(content=query),
+                    AIMessage(content=answer.content),
+                    HumanMessage(content=_prompt),
+                ])
+                return LLMResponse(
+                    content=answer.content,
+                    confidence=_parse_confidence(conf.content),
+                    latency_s=_t.perf_counter() - t0,
+                )
+
+        return _GoogleProvider()
+
     raise ValueError(f"Unsupported provider: {kind}")
 
 
@@ -215,6 +252,7 @@ class RunRequest(BaseModel):
     azure_endpoint: str = ""
     azure_deployment: str = ""
     claude_model: str = "claude-sonnet-4-6"
+    google_model: str = "gemini-2.0-flash"
     api_key: str = ""
     custom_prompt: str = ""  # if set, used for every episode instead of the built-in pool
 
@@ -233,9 +271,14 @@ async def index() -> str:
 async def start_run(req: RunRequest):
     kind_map = {"mock": ProviderKind.MOCK, "azure_openai": ProviderKind.AZURE_OPENAI}
     kind_enum = kind_map.get(req.provider, ProviderKind.MOCK)
+    model_id = (
+        req.claude_model if req.provider == "claude" else
+        req.google_model if req.provider == "google" else
+        "mock-model"
+    )
     provider_cfg = ProviderConfig(
         kind=kind_enum,
-        model_id=req.claude_model if req.provider == "claude" else "mock-model",
+        model_id=model_id,
         mock_simulate_latency=req.simulate_latency,
         azure_endpoint=req.azure_endpoint,
         azure_deployment=req.azure_deployment,
