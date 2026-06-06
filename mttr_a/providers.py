@@ -8,15 +8,15 @@ Swapping providers is a one-line config change — the graph nodes are provider-
 Confidence strategy
 -------------------
   Mock     — sampled from N(0.65, 0.15), no real call
-  Bedrock  — structured self-eval prompt: model scores its own answer 0-1
-  Azure    — same structured self-eval via AzureChatOpenAI
-  Vertex   — same structured self-eval via ChatVertexAI
+  Real     — cosine similarity between query and response embeddings,
+             computed locally with sentence-transformers (all-MiniLM-L6-v2).
 
-Real providers always make two sequential calls per episode:
-  1. answer the query
-  2. rate confidence in that answer
-This keeps the implementation provider-agnostic (no reliance on logprobs,
-which differ across providers and model versions).
+             cos(query_emb, response_emb) mirrors the paper's retrieval-based
+             signal (cos(query, retrieved_doc)) — high when the response stays
+             semantically aligned with the query, lower when it drifts off-topic.
+
+             The embedding model is lazy-loaded on first use and shared across
+             all provider instances. Requires: pip install sentence-transformers
 """
 
 from __future__ import annotations
@@ -35,11 +35,7 @@ _DATA_DIR = Path(__file__).parent.parent / "data"
 def _load_mock_cfg() -> dict:
     return json.loads((_DATA_DIR / "mock_config" / "config.json").read_text())
 
-def _load_confidence_prompt() -> str:
-    return (_DATA_DIR / "confidence_eval" / "prompt.txt").read_text().strip()
-
 _MOCK_CFG = _load_mock_cfg()
-_CONFIDENCE_PROMPT: str = _load_confidence_prompt()
 _MOCK_CONF = _MOCK_CFG["confidence_distribution"]
 _MOCK_LATENCY: dict[str, tuple[float, float]] = {
     k: (v[0], v[1])
@@ -47,6 +43,38 @@ _MOCK_LATENCY: dict[str, tuple[float, float]] = {
     if not k.startswith("_")
 }
 _TTFT_FRACTION: float = _MOCK_CFG["ttft_fraction"]["value"]
+
+# ── Embedding-based confidence ─────────────────────────────────────────────────
+
+_embed_model = None  # lazy-loaded, shared across all provider instances
+
+def _get_embed_model():
+    global _embed_model
+    if _embed_model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError as exc:
+            raise ImportError(
+                "Embedding confidence requires sentence-transformers: "
+                "pip install sentence-transformers"
+            ) from exc
+        _embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _embed_model
+
+def embedding_confidence(query: str, response: str) -> float:
+    """
+    Cosine similarity between query and response embeddings.
+
+    Mirrors the paper's retrieval signal cos(q, d_top): high when the
+    response is semantically aligned with the query, lower when it drifts.
+    Returns a value in [0, 1].
+    """
+    import numpy as np
+    model = _get_embed_model()
+    vecs = model.encode([query, response])
+    q, r = vecs[0], vecs[1]
+    cos = float(np.dot(q, r) / (np.linalg.norm(q) * np.linalg.norm(r) + 1e-9))
+    return max(0.0, min(1.0, cos))
 
 
 @dataclass(frozen=True)
@@ -174,21 +202,13 @@ class BedrockProvider(BaseLLMProvider):
         self._AIMessage = AIMessage
 
     def invoke(self, query: str, context: str = "") -> LLMResponse:
-        from langchain_core.messages import HumanMessage, AIMessage
-
+        from langchain_core.messages import HumanMessage
         t0 = time.perf_counter()
         answer = self._llm.invoke([HumanMessage(content=query)])
-
-        conf_msg = self._llm.invoke([
-            HumanMessage(content=query),
-            AIMessage(content=answer.content),
-            HumanMessage(content=_CONFIDENCE_PROMPT),
-        ])
         latency = time.perf_counter() - t0
-
         return LLMResponse(
             content=answer.content,
-            confidence=_parse_confidence(conf_msg.content),
+            confidence=embedding_confidence(query, answer.content),
             latency_s=latency,
         )
 
@@ -227,20 +247,13 @@ class AzureOpenAIProvider(BaseLLMProvider):
         )
 
     def invoke(self, query: str, context: str = "") -> LLMResponse:
-        from langchain_core.messages import HumanMessage, AIMessage
-
+        from langchain_core.messages import HumanMessage
         t0 = time.perf_counter()
         answer = self._llm.invoke([HumanMessage(content=query)])
-        conf_msg = self._llm.invoke([
-            HumanMessage(content=query),
-            AIMessage(content=answer.content),
-            HumanMessage(content=_CONFIDENCE_PROMPT),
-        ])
         latency = time.perf_counter() - t0
-
         return LLMResponse(
             content=answer.content,
-            confidence=_parse_confidence(conf_msg.content),
+            confidence=embedding_confidence(query, answer.content),
             latency_s=latency,
         )
 
@@ -279,20 +292,13 @@ class VertexAIProvider(BaseLLMProvider):
         )
 
     def invoke(self, query: str, context: str = "") -> LLMResponse:
-        from langchain_core.messages import HumanMessage, AIMessage
-
+        from langchain_core.messages import HumanMessage
         t0 = time.perf_counter()
         answer = self._llm.invoke([HumanMessage(content=query)])
-        conf_msg = self._llm.invoke([
-            HumanMessage(content=query),
-            AIMessage(content=answer.content),
-            HumanMessage(content=_CONFIDENCE_PROMPT),
-        ])
         latency = time.perf_counter() - t0
-
         return LLMResponse(
             content=answer.content,
-            confidence=_parse_confidence(conf_msg.content),
+            confidence=embedding_confidence(query, answer.content),
             latency_s=latency,
         )
 
@@ -318,15 +324,3 @@ def build_provider(config: ProviderConfig, seed: int = 42) -> BaseLLMProvider:
     raise ValueError(f"Unknown provider kind: {config.kind}")
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _parse_confidence(text: str) -> float:
-    """Extract a float in [0, 1] from a model's free-text confidence reply."""
-    import re
-    matches = re.findall(r"\d+\.?\d*", text.strip())
-    if not matches:
-        return 0.5
-    value = float(matches[0])
-    if value > 1.0:
-        value /= 100.0
-    return max(0.0, min(1.0, value))

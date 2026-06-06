@@ -29,7 +29,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from mttr_a import BenchmarkConfig, MockProvider, ProductionRunner, ProviderConfig, ProviderKind
-from mttr_a.providers import _CONFIDENCE_PROMPT, _parse_confidence
+from mttr_a.providers import embedding_confidence
 from mttr_a.sinks import TelemetrySink
 from mttr_a_simulation import Episode
 
@@ -119,21 +119,15 @@ def _build_provider(kind: str, cfg: ProviderConfig, api_key: str):
             temperature=cfg.temperature,
             max_tokens=cfg.max_tokens,
         )
-        _prompt = _CONFIDENCE_PROMPT
 
         class _AzureProvider(BaseLLMProvider):
             def invoke(self, query: str, context: str = "") -> LLMResponse:
-                from langchain_core.messages import AIMessage, HumanMessage
+                from langchain_core.messages import HumanMessage
                 t0 = _t.perf_counter()
                 answer = _llm.invoke([HumanMessage(content=query)])
-                conf = _llm.invoke([
-                    HumanMessage(content=query),
-                    AIMessage(content=answer.content),
-                    HumanMessage(content=_prompt),
-                ])
                 return LLMResponse(
                     content=answer.content,
-                    confidence=_parse_confidence(conf.content),
+                    confidence=embedding_confidence(query, answer.content),
                     latency_s=_t.perf_counter() - t0,
                 )
 
@@ -156,21 +150,15 @@ def _build_provider(kind: str, cfg: ProviderConfig, api_key: str):
             temperature=cfg.temperature,
             max_tokens=cfg.max_tokens,
         )
-        _prompt = _CONFIDENCE_PROMPT
 
         class _ClaudeProvider(BaseLLMProvider):
             def invoke(self, query: str, context: str = "") -> LLMResponse:
-                from langchain_core.messages import AIMessage, HumanMessage
+                from langchain_core.messages import HumanMessage
                 t0 = _t.perf_counter()
                 answer = _llm.invoke([HumanMessage(content=query)])
-                conf = _llm.invoke([
-                    HumanMessage(content=query),
-                    AIMessage(content=answer.content),
-                    HumanMessage(content=_prompt),
-                ])
                 return LLMResponse(
                     content=answer.content,
-                    confidence=_parse_confidence(conf.content),
+                    confidence=embedding_confidence(query, answer.content),
                     latency_s=_t.perf_counter() - t0,
                 )
 
@@ -193,21 +181,15 @@ def _build_provider(kind: str, cfg: ProviderConfig, api_key: str):
             temperature=cfg.temperature,
             max_output_tokens=cfg.max_tokens,
         )
-        _prompt = _CONFIDENCE_PROMPT
 
         class _GoogleProvider(BaseLLMProvider):
             def invoke(self, query: str, context: str = "") -> LLMResponse:
-                from langchain_core.messages import AIMessage, HumanMessage
+                from langchain_core.messages import HumanMessage
                 t0 = _t.perf_counter()
                 answer = _llm.invoke([HumanMessage(content=query)])
-                conf = _llm.invoke([
-                    HumanMessage(content=query),
-                    AIMessage(content=answer.content),
-                    HumanMessage(content=_prompt),
-                ])
                 return LLMResponse(
                     content=answer.content,
-                    confidence=_parse_confidence(conf.content),
+                    confidence=embedding_confidence(query, answer.content),
                     latency_s=_t.perf_counter() - t0,
                 )
 
