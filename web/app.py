@@ -181,10 +181,10 @@ def _build_provider(kind: str, cfg: ProviderConfig, api_key: str):
 
 # ── Background runner ──────────────────────────────────────────────────────────
 
-def _run_in_thread(session: _Session, cfg: BenchmarkConfig, provider) -> None:
+def _run_in_thread(session: _Session, cfg: BenchmarkConfig, provider, query_pool=None) -> None:
     try:
         sink = _StreamingSink(session.queue, cfg.n_runs)
-        metrics = ProductionRunner(cfg, provider, sink).run()
+        metrics = ProductionRunner(cfg, provider, sink, query_pool=query_pool).run()
         session.queue.put({
             "type": "complete",
             "metrics": {
@@ -216,6 +216,7 @@ class RunRequest(BaseModel):
     azure_deployment: str = ""
     claude_model: str = "claude-sonnet-4-6"
     api_key: str = ""
+    custom_prompt: str = ""  # if set, used for every episode instead of the built-in pool
 
 
 # ── App ────────────────────────────────────────────────────────────────────────
@@ -256,8 +257,10 @@ async def start_run(req: RunRequest):
         _key = "\x00" * len(_key)
         del _key
 
+    query_pool = [req.custom_prompt.strip()] if req.custom_prompt.strip() else None
+
     session = _new_session()
-    Thread(target=_run_in_thread, args=(session, cfg, provider), daemon=True).start()
+    Thread(target=_run_in_thread, args=(session, cfg, provider, query_pool), daemon=True).start()
     return {"session_id": session.id}
 
 

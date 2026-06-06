@@ -254,6 +254,53 @@
     }
     #azure-fields.visible { display: flex; }
 
+    /* prompt textarea */
+    #custom-prompt {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 8px 10px;
+      outline: none;
+      resize: vertical;
+      min-height: 68px;
+      line-height: 1.5;
+      transition: border-color 0.15s;
+    }
+    #custom-prompt:focus { border-color: var(--blue); }
+    #custom-prompt::placeholder { color: var(--muted); }
+
+    .chip-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+    .chip {
+      padding: 3px 9px;
+      border: 1px solid var(--border-2);
+      border-radius: 20px;
+      background: transparent;
+      color: var(--text-2);
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .chip:hover { border-color: var(--blue); color: var(--blue); }
+
+    .field-hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 5px;
+    }
+
+    .run-desc {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 7px;
+    }
+    .run-desc.live { color: var(--amber); }
+
     /* run button */
     .run-btn {
       width: 100%;
@@ -500,6 +547,18 @@
       </div>
 
       <div>
+        <div class="section-label">Prompt <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">— optional</span></div>
+        <textarea id="custom-prompt" rows="3" placeholder="Leave empty to use the built-in query pool&#10;&#10;Tip: complex prompts produce more signal" oninput="updatePromptHint()"></textarea>
+        <div class="chip-row">
+          <button class="chip" onclick="setPrompt('minimal')">Minimal</button>
+          <button class="chip" onclick="setPrompt('moderate')">Moderate</button>
+          <button class="chip" onclick="setPrompt('complex')">Complex</button>
+          <button class="chip" onclick="setPrompt('multistep')">Multi-step</button>
+        </div>
+        <div class="field-hint" id="prompt-hint">Uses built-in 16-query pool</div>
+      </div>
+
+      <div>
         <div class="section-label">Episodes</div>
         <div class="slider-row">
           <input type="range" id="n-runs" min="10" max="200" step="10" value="30"
@@ -519,6 +578,7 @@
 
       <div style="margin-top:auto; padding-top:8px;">
         <button class="run-btn" id="run-btn" onclick="startRun()">Run Benchmark</button>
+        <div class="run-desc" id="run-desc">Local simulation · no API calls</div>
       </div>
     </aside>
 
@@ -589,6 +649,19 @@
   const TAU = 0.6;  // default τ_drift
 
   // ── Provider selection ─────────────────────────────────────────────────────
+  const PROVIDER_DESC = {
+    mock:        'Local simulation · no API calls',
+    claude:      'Live API calls · 2 per episode · tokens billed',
+    azure_openai:'Live API calls · 2 per episode · tokens billed',
+  };
+
+  const EXAMPLE_PROMPTS = {
+    minimal:  'What is 2 + 2?',
+    moderate: 'Explain the TCP three-way handshake and why it matters for connection reliability.',
+    complex:  'Compare microservices and monolithic architectures. Cover operational complexity, latency, fault isolation, team autonomy, and when each is the wrong choice.',
+    multistep:'Design a distributed rate limiter that works across 50 regional nodes. Cover the data structure, synchronization strategy, failure modes, and how you would test correctness under network partitions.',
+  };
+
   function selectProvider(el) {
     document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
     el.classList.add('active');
@@ -597,6 +670,21 @@
       selectedProvider === 'azure_openai' ? 'flex' : 'none';
     document.getElementById('claude-fields').style.display =
       selectedProvider === 'claude' ? 'flex' : 'none';
+    const desc = document.getElementById('run-desc');
+    desc.textContent = PROVIDER_DESC[selectedProvider] || '';
+    desc.className = 'run-desc' + (selectedProvider !== 'mock' ? ' live' : '');
+  }
+
+  function setPrompt(tier) {
+    const ta = document.getElementById('custom-prompt');
+    ta.value = EXAMPLE_PROMPTS[tier] || '';
+    updatePromptHint();
+  }
+
+  function updatePromptHint() {
+    const val = document.getElementById('custom-prompt').value.trim();
+    document.getElementById('prompt-hint').textContent =
+      val ? 'Custom prompt used for every episode' : 'Uses built-in 16-query pool';
   }
 
   // ── Key reveal toggles ─────────────────────────────────────────────────────
@@ -760,6 +848,7 @@
       n_runs: nRuns,
       seed: isNaN(seed) ? 42 : seed,
       simulate_latency: true,
+      custom_prompt: document.getElementById('custom-prompt').value.trim(),
     };
 
     if (selectedProvider === 'claude') {

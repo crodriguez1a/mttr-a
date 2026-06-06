@@ -35,10 +35,12 @@ class ProductionRunner:
         config: BenchmarkConfig,
         provider: BaseLLMProvider,
         sink: TelemetrySink,
+        query_pool: list[str] | None = None,
     ) -> None:
         self._config = config
         self._provider = provider
         self._sink = sink
+        self._query_pool = query_pool if query_pool else QUERY_POOL
 
     def run(self) -> SystemMetrics:
         cfg = self._config
@@ -55,7 +57,7 @@ class ProductionRunner:
             print(f"{'─'*64}")
 
         for run_id in range(cfg.n_runs):
-            query = rng.choice(QUERY_POOL)
+            query = rng.choice(self._query_pool)
 
             initial_state: AgentState = {
                 "run_id": run_id,
