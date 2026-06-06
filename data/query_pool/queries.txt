@@ -1,0 +1,16 @@
+LangGraph recovery reflexes
+agent orchestration reliability
+rollback sandbox audit snapshots
+tool retries and backoff
+consensus voting disagreement
+policy thresholds and approvals
+runtime control and risk tiers
+runtime monitoring telemetry signals
+drift detection and confidence
+mttra and mtbf calculation
+normalized reliability index
+incident playbooks escalation
+global memory reconciliation
+safe mode fallback routes
+retrieval reranking grounding
+planning decomposition tools

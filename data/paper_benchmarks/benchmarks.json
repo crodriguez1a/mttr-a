@@ -1,0 +1,12 @@
+{
+  "_source": "Table II, Barak Or, arXiv:2511.20663v5 (2025)",
+  "_description": "Reference values reported in the paper. Used by Reporter to print a side-by-side comparison of paper results vs. this simulation's output.",
+  "n_runs": 200,
+  "seed": 42,
+  "metrics": {
+    "med_ttr_a_s": 6.21,
+    "med_ttr_a_std_s": 2.14,
+    "mtbf_s": 6.73,
+    "nrr": 0.077
+  }
+}

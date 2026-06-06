@@ -1,0 +1,26 @@
+{
+  "_source": "Table II, Barak Or, arXiv:2511.20663v5 (2025)",
+  "_description": "Calibration parameters for each recovery reflex mode. weight controls how often each reflex is selected by the weighted policy sampler. median_latency_s and std_latency_s parametrise the Gaussian from which execution time is drawn.",
+  "reflexes": {
+    "auto-replan": {
+      "weight": 93,
+      "median_latency_s": 5.94,
+      "std_latency_s": 0.70
+    },
+    "tool-retry": {
+      "weight": 42,
+      "median_latency_s": 4.46,
+      "std_latency_s": 0.61
+    },
+    "rollback": {
+      "weight": 44,
+      "median_latency_s": 6.99,
+      "std_latency_s": 0.43
+    },
+    "human-approve": {
+      "weight": 21,
+      "median_latency_s": 12.22,
+      "std_latency_s": 0.68
+    }
+  }
+}

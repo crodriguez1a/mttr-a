@@ -1,0 +1,27 @@
+{
+  "_description": "Simulation parameters for MockProvider and the pure-Python reasoning/recovery nodes. None of these values come from the paper — they are tuning choices for producing realistic-looking benchmark dynamics without real LLM calls.",
+  "confidence_distribution": {
+    "_description": "Parameters for the mock confidence score drawn by reasoning_node. Models N(base_mu, base_sigma) + N(noise_mu, noise_sigma), clamped to [0, 1]. Chosen so that roughly 30-40% of episodes fall below tau_drift=0.6.",
+    "base_mu": 0.65,
+    "base_sigma": 0.15,
+    "noise_mu": 0.0,
+    "noise_sigma": 0.05
+  },
+  "recovery_timing": {
+    "_description": "Exponential distribution means (in seconds) for the detect and decide phases. t_execute is governed by reflex_params, not this file. t_execute_min_s is a lower bound so simulated execution times are never negative.",
+    "t_detect_mean_s": 0.50,
+    "t_decide_mean_s": 0.15,
+    "t_execute_min_s": 0.10
+  },
+  "mock_provider_latency": {
+    "_description": "Uniform [min, max] sleep ranges (seconds) used by MockProvider when mock_simulate_latency=True. Keys map to the context hint passed to provider.invoke(). An empty string key is the fallback for any unrecognised context.",
+    "": [0.3, 1.2],
+    "retry": [0.3, 1.0],
+    "rollback": [0.5, 1.5],
+    "recovery": [0.4, 1.2]
+  },
+  "ttft_fraction": {
+    "_description": "MockProvider simulates time-to-first-token as this fraction of the total call duration. 0.20 means the first token arrives when 20% of the simulated call time has elapsed.",
+    "value": 0.20
+  }
+}
