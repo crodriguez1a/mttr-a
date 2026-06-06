@@ -666,7 +666,7 @@
 
       <div class="chart-panel">
         <div class="chart-header">
-          <div class="chart-title">Confidence Timeline <span class="tip" data-tip="A 0–1 score the model assigns to its own answer immediately after responding — self-evaluation, not an external judge. Unlike LLM-as-a-judge (which uses a separate model), the same model rates itself. When the score drops below τ_drift (dashed line), a drift event is triggered." style="font-size:11px;">ⓘ</span></div>
+          <div class="chart-title">Confidence Timeline <span class="tip" data-tip="In the paper, confidence is cosine similarity between the query embedding and the top retrieved document — a real mathematical signal. This implementation approximates it by asking the model to self-rate its answer 0–1, which is a known limitation: the model produces a semantically plausible number, not a calibrated probability." style="font-size:11px;">ⓘ</span></div>
           <div class="chart-legend">
             <div class="legend-item">
               <div class="legend-dot" style="background:var(--blue)"></div>
