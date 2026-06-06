@@ -401,6 +401,40 @@
       color: var(--muted);
     }
 
+    /* tooltip on ⓘ */
+    .tip {
+      font-size: 10px;
+      color: var(--muted);
+      cursor: default;
+      position: relative;
+      margin-left: 4px;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .tip::after {
+      content: attr(data-tip);
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      color: var(--text);
+      font-size: 11.5px;
+      padding: 9px 11px;
+      border-radius: 6px;
+      width: 210px;
+      line-height: 1.5;
+      z-index: 20;
+      white-space: normal;
+      pointer-events: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .tip.tip-left::after  { left: auto; right: 0; transform: none; }
+    .tip:hover::after { display: block; }
+
     /* Chart panel */
     .chart-panel {
       background: var(--surface);
@@ -611,24 +645,24 @@
     <div class="content">
       <div class="kpi-row">
         <div class="kpi blue">
-          <div class="kpi-label">NRR</div>
+          <div class="kpi-label">NRR <span class="tip" data-tip="Normal Recovery Ratio — the fraction of time the agent spends in a healthy state rather than recovering. 1.0 = always healthy. Values above 0.7 are generally good.">ⓘ</span></div>
           <div class="kpi-val" id="kpi-nrr">—</div>
-          <div class="kpi-sub">Normal Recovery Ratio</div>
+          <div class="kpi-sub">Healthy time ÷ total time</div>
         </div>
         <div class="kpi amber">
-          <div class="kpi-label">MedTTR-A</div>
+          <div class="kpi-label">MedTTR-A <span class="tip" data-tip="Median Time To Recovery (Agentic) — how long a typical recovery takes in seconds. Half of all recoveries are faster than this, half are slower. Lower is better.">ⓘ</span></div>
           <div class="kpi-val" id="kpi-med">—</div>
-          <div class="kpi-sub">Median recovery (s)</div>
+          <div class="kpi-sub">Typical recovery time (s)</div>
         </div>
         <div class="kpi green">
-          <div class="kpi-label">MTBF</div>
+          <div class="kpi-label">MTBF <span class="tip" data-tip="Mean Time Between Failures — how long the agent runs stably before drifting again, in seconds. A low MTBF relative to MedTTR-A means the agent spends more time recovering than running.">ⓘ</span></div>
           <div class="kpi-val" id="kpi-mtbf">—</div>
-          <div class="kpi-sub">Mean stable interval (s)</div>
+          <div class="kpi-sub">Avg stable interval (s)</div>
         </div>
         <div class="kpi red">
-          <div class="kpi-label">Drift Rate</div>
+          <div class="kpi-label">Drift Rate <span class="tip tip-left" data-tip="The share of episodes where the model's confidence fell below the threshold. High values may mean the prompt is complex, the model is uncertain, or the threshold needs calibration.">ⓘ</span></div>
           <div class="kpi-val" id="kpi-drift">—</div>
-          <div class="kpi-sub">Episodes flagged</div>
+          <div class="kpi-sub">Episodes below threshold</div>
         </div>
       </div>
 
