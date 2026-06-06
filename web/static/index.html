@@ -402,39 +402,35 @@
       color: var(--muted);
     }
 
-    /* tooltip on ⓘ */
+    /* tooltip on ⓘ — rendered via JS into document.body to escape stacking contexts */
     .tip {
       font-size: 10px;
       color: var(--muted);
       cursor: default;
-      position: relative;
       margin-left: 4px;
       font-weight: 400;
       letter-spacing: 0;
       text-transform: none;
     }
-    .tip::after {
-      content: attr(data-tip);
+    #tooltip {
       display: none;
-      position: absolute;
-      bottom: calc(100% + 8px);
-      left: 50%;
-      transform: translateX(-50%);
+      position: fixed;
       background: var(--surface-2);
       border: 1px solid var(--border-2);
       color: var(--text);
-      font-size: 11.5px;
-      padding: 9px 11px;
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+      padding: 9px 12px;
       border-radius: 6px;
-      width: 210px;
+      width: 220px;
       line-height: 1.5;
-      z-index: 20;
+      z-index: 9999;
       white-space: normal;
       pointer-events: none;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
-    .tip.tip-left::after  { left: auto; right: 0; transform: none; }
-    .tip:hover::after { display: block; }
 
     /* Chart panel */
     .chart-panel {
@@ -508,6 +504,7 @@
   </style>
 </head>
 <body>
+<div id="tooltip"></div>
 <div class="shell">
   <header>
     <div class="wordmark">MTTR<span>-A</span></div>
@@ -661,7 +658,7 @@
           <div class="kpi-sub">Avg stable interval (s)</div>
         </div>
         <div class="kpi red">
-          <div class="kpi-label">Drift Rate <span class="tip tip-left" data-tip="The share of episodes where the model's confidence fell below the threshold. High values may mean the prompt is complex, the model is uncertain, or the threshold needs calibration.">ⓘ</span></div>
+          <div class="kpi-label">Drift Rate <span class="tip" data-tip="The share of episodes where the model's confidence fell below the threshold. High values may mean the prompt is complex, the model is uncertain, or the threshold needs calibration.">ⓘ</span></div>
           <div class="kpi-val" id="kpi-drift">—</div>
           <div class="kpi-sub">Episodes below threshold</div>
         </div>
@@ -669,7 +666,7 @@
 
       <div class="chart-panel">
         <div class="chart-header">
-          <div class="chart-title">Confidence Timeline <span class="tip tip-left" data-tip="After each response, the model rates its own answer from 0 to 1. That self-assigned score is confidence. When it drops below the dashed threshold (τ_drift), a drift event is triggered and the recovery timer starts." style="font-size:11px;">ⓘ</span></div>
+          <div class="chart-title">Confidence Timeline <span class="tip" data-tip="A 0–1 score the model assigns to its own answer immediately after responding — self-evaluation, not an external judge. Unlike LLM-as-a-judge (which uses a separate model), the same model rates itself. When the score drops below τ_drift (dashed line), a drift event is triggered." style="font-size:11px;">ⓘ</span></div>
           <div class="chart-legend">
             <div class="legend-item">
               <div class="legend-dot" style="background:var(--blue)"></div>
@@ -1024,6 +1021,43 @@
     document.getElementById('run-btn').disabled = false;
     setStatus('idle', 'Idle');
     setProgress(0);
+  }
+
+  // ── Tooltip engine ─────────────────────────────────────────────────────────
+  const _tt = document.getElementById('tooltip');
+
+  document.addEventListener('mouseover', (e) => {
+    const el = e.target.closest('.tip');
+    if (!el) return;
+    _tt.textContent = el.dataset.tip || '';
+    _tt.style.display = 'block';
+    _positionTooltip(el);
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    if (!e.target.closest('.tip')) return;
+    _tt.style.display = 'none';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (_tt.style.display === 'none') return;
+    const el = e.target.closest('.tip');
+    if (el) _positionTooltip(el);
+  });
+
+  function _positionTooltip(el) {
+    const r = el.getBoundingClientRect();
+    const tw = 220, th = _tt.offsetHeight || 80;
+    const margin = 8;
+    let top = r.top - th - margin;
+    let left = r.left + r.width / 2 - tw / 2;
+    // flip below if not enough room above
+    if (top < margin) top = r.bottom + margin;
+    // keep within viewport horizontally
+    left = Math.max(margin, Math.min(left, window.innerWidth - tw - margin));
+    _tt.style.top  = top  + 'px';
+    _tt.style.left = left + 'px';
+    _tt.style.width = tw + 'px';
   }
 </script>
 </body>
