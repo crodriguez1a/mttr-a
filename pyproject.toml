@@ -50,6 +50,10 @@ notebook = [
     "matplotlib>=3.8",
     "pandas>=2.0",
 ]
+web = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+]
 
 [project.scripts]
 # After pip install -e . you can run: mttr-a

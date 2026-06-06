@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MTTR-A</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #070C16;
+      --surface:   #0D1526;
+      --surface-2: #131F35;
+      --border:    #1C2D47;
+      --border-2:  #243852;
+      --text:      #D8E6F7;
+      --text-2:    #8BA4C4;
+      --muted:     #3D5478;
+      --blue:      #4B9EFF;
+      --blue-dim:  rgba(75,158,255,0.12);
+      --green:     #22D47A;
+      --green-dim: rgba(34,212,122,0.12);
+      --amber:     #F5A623;
+      --amber-dim: rgba(245,166,35,0.12);
+      --red:       #F05252;
+      --red-dim:   rgba(240,82,82,0.12);
+      --radius:    8px;
+      --mono:      'JetBrains Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Layout ── */
+    .shell {
+      display: grid;
+      grid-template-rows: 52px 1fr;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .wordmark {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: 0.04em;
+    }
+    .wordmark span { color: var(--blue); }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .status-dot.idle    { background: var(--muted); }
+    .status-dot.running { background: var(--blue); box-shadow: 0 0 6px var(--blue); animation: pulse 1.4s infinite; }
+    .status-dot.done    { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.error   { background: var(--red); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.35; }
+    }
+
+    /* ── Progress bar ── */
+    .progress-track {
+      position: fixed;
+      top: 52px; left: 0; right: 0;
+      height: 2px;
+      background: transparent;
+      z-index: 100;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--blue);
+      transition: width 0.3s ease;
+      box-shadow: 0 0 8px var(--blue);
+    }
+
+    /* ── Main content ── */
+    main {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    aside {
+      border-right: 1px solid var(--border);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+      background: var(--surface);
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    /* provider pills */
+    .provider-row {
+      display: flex;
+      gap: 6px;
+    }
+    .pill {
+      flex: 1;
+      padding: 8px 0;
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-2);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .pill:hover { border-color: var(--blue); color: var(--text); }
+    .pill.active {
+      background: var(--blue-dim);
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    /* form fields */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+    }
+    .field input[type="text"],
+    .field input[type="password"],
+    .field input[type="url"],
+    .field input[type="number"] {
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--blue); }
+    .field input::placeholder { color: var(--muted); }
+
+    /* key input with reveal toggle */
+    .key-wrap { position: relative; }
+    .key-wrap input { width: 100%; padding-right: 36px; }
+    .key-reveal {
+      position: absolute;
+      right: 10px; top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 0;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .key-reveal:hover { color: var(--text-2); }
+
+    /* slider */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .slider-row input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 3px;
+      background: var(--border-2);
+      border-radius: 2px;
+      outline: none;
+    }
+    .slider-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--blue);
+      cursor: pointer;
+      box-shadow: 0 0 4px var(--blue);
+    }
+    .slider-val {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--blue);
+      min-width: 28px;
+      text-align: right;
+    }
+
+    /* azure fields */
+    #azure-fields {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+    #azure-fields.visible { display: flex; }
+
+    /* run button */
+    .run-btn {
+      width: 100%;
+      padding: 11px;
+      background: var(--blue);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: opacity 0.15s, box-shadow 0.15s;
+    }
+    .run-btn:hover { opacity: 0.88; box-shadow: 0 0 16px rgba(75,158,255,0.35); }
+    .run-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+    .error-msg {
+      display: none;
+      background: var(--red-dim);
+      border: 1px solid var(--red);
+      border-radius: var(--radius);
+      color: var(--red);
+      font-size: 12px;
+      padding: 8px 10px;
+      line-height: 1.4;
+    }
+    .error-msg.visible { display: block; }
+
+    /* divider */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 0 -20px;
+    }
+
+    /* ── Content panel ── */
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    /* KPI tiles */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--border);
+    }
+    .kpi.blue::after  { background: var(--blue); }
+    .kpi.green::after { background: var(--green); }
+    .kpi.amber::after { background: var(--amber); }
+    .kpi.red::after   { background: var(--red); }
+
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .kpi-val {
+      font-family: var(--mono);
+      font-size: 26px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 6px;
+      transition: color 0.3s;
+    }
+    .kpi.blue  .kpi-val { color: var(--blue); }
+    .kpi.green .kpi-val { color: var(--green); }
+    .kpi.amber .kpi-val { color: var(--amber); }
+    .kpi.red   .kpi-val { color: var(--red); }
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* Chart panel */
+    .chart-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 20px 16px;
+      flex: 1;
+      min-height: 320px;
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .chart-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-2);
+    }
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--text-2);
+    }
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .chart-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 240px;
+    }
+
+    /* idle placeholder */
+    .chart-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .chart-placeholder svg { opacity: 0.25; }
+    .chart-placeholder.hidden { display: none; }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); }
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 520px) {
+      .kpi-row { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="wordmark">MTTR<span>-A</span></div>
+    <div class="status-badge">
+      <div class="status-dot idle" id="status-dot"></div>
+      <span id="status-text">Idle</span>
+    </div>
+  </header>
+
+  <div class="progress-track">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+
+  <main>
+    <!-- ── Sidebar ── -->
+    <aside>
+      <div>
+        <div class="section-label">Provider</div>
+        <div class="provider-row">
+          <button class="pill active" data-provider="mock" onclick="selectProvider(this)">Mock</button>
+          <button class="pill" data-provider="azure_openai" onclick="selectProvider(this)">Azure OpenAI</button>
+        </div>
+      </div>
+
+      <div id="azure-fields">
+        <div class="field">
+          <label>Endpoint</label>
+          <input type="url" id="azure-endpoint" placeholder="https://…openai.azure.com">
+        </div>
+        <div class="field">
+          <label>Deployment</label>
+          <input type="text" id="azure-deployment" placeholder="gpt-4o">
+        </div>
+        <div class="field">
+          <label>API Key</label>
+          <div class="key-wrap">
+            <input type="password" id="api-key" placeholder="sk-…" autocomplete="off">
+            <button class="key-reveal" onclick="toggleKey()" id="key-reveal-btn" title="Show / hide key">
+              <svg id="eye-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="divider"></div>
+      </div>
+
+      <div>
+        <div class="section-label">Episodes</div>
+        <div class="slider-row">
+          <input type="range" id="n-runs" min="10" max="200" step="10" value="30"
+                 oninput="document.getElementById('n-runs-val').textContent = this.value">
+          <span class="slider-val" id="n-runs-val">30</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Seed</div>
+        <div class="field">
+          <input type="number" id="seed" value="42" min="0" max="99999">
+        </div>
+      </div>
+
+      <div class="error-msg" id="error-msg"></div>
+
+      <div style="margin-top:auto; padding-top:8px;">
+        <button class="run-btn" id="run-btn" onclick="startRun()">Run Benchmark</button>
+      </div>
+    </aside>
+
+    <!-- ── Content ── -->
+    <div class="content">
+      <div class="kpi-row">
+        <div class="kpi blue">
+          <div class="kpi-label">NRR</div>
+          <div class="kpi-val" id="kpi-nrr">—</div>
+          <div class="kpi-sub">Normal Recovery Ratio</div>
+        </div>
+        <div class="kpi amber">
+          <div class="kpi-label">MedTTR-A</div>
+          <div class="kpi-val" id="kpi-med">—</div>
+          <div class="kpi-sub">Median recovery (s)</div>
+        </div>
+        <div class="kpi green">
+          <div class="kpi-label">MTBF</div>
+          <div class="kpi-val" id="kpi-mtbf">—</div>
+          <div class="kpi-sub">Mean stable interval (s)</div>
+        </div>
+        <div class="kpi red">
+          <div class="kpi-label">Drift Rate</div>
+          <div class="kpi-val" id="kpi-drift">—</div>
+          <div class="kpi-sub">Episodes flagged</div>
+        </div>
+      </div>
+
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div class="chart-title">Confidence Timeline</div>
+          <div class="chart-legend">
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--blue)"></div>
+              Confidence
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--red)"></div>
+              Drift event
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--muted);opacity:.5"></div>
+              τ_drift
+            </div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-placeholder" id="chart-placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <span>Run a benchmark to see live data</span>
+          </div>
+          <canvas id="chart" style="display:none"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let selectedProvider = 'mock';
+  let chart = null;
+  let confData = [];
+  let driftData = [];
+  let totalRuns = 30;
+  const TAU = 0.6;  // default τ_drift
+
+  // ── Provider selection ─────────────────────────────────────────────────────
+  function selectProvider(el) {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    selectedProvider = el.dataset.provider;
+    const az = document.getElementById('azure-fields');
+    selectedProvider === 'azure_openai'
+      ? az.classList.add('visible')
+      : az.classList.remove('visible');
+  }
+
+  // ── Key reveal toggle ──────────────────────────────────────────────────────
+  function toggleKey() {
+    const inp = document.getElementById('api-key');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+
+  // ── Chart initialisation ───────────────────────────────────────────────────
+  function initChart(nRuns) {
+    totalRuns = nRuns;
+    const canvas = document.getElementById('chart');
+    document.getElementById('chart-placeholder').classList.add('hidden');
+    canvas.style.display = 'block';
+
+    if (chart) { chart.destroy(); }
+
+    confData = [];
+    driftData = [];
+
+    const tauLine = {
+      type: 'line',
+      label: 'τ_drift',
+      data: [],
+      borderColor: 'rgba(61,84,120,0.7)',
+      borderWidth: 1,
+      borderDash: [4, 3],
+      pointRadius: 0,
+      fill: false,
+      order: 3,
+    };
+
+    chart = new Chart(canvas, {
+      data: {
+        datasets: [
+          {
+            type: 'line',
+            label: 'Confidence',
+            data: confData,
+            borderColor: 'rgba(75,158,255,0.85)',
+            backgroundColor: 'rgba(75,158,255,0.07)',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: true,
+            tension: 0.35,
+            order: 2,
+          },
+          {
+            type: 'scatter',
+            label: 'Drift',
+            data: driftData,
+            backgroundColor: 'rgba(240,82,82,0.85)',
+            borderColor: 'rgba(240,82,82,0.4)',
+            borderWidth: 1,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            order: 1,
+          },
+          tauLine,
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(13,21,38,0.95)',
+            borderColor: 'rgba(28,45,71,1)',
+            borderWidth: 1,
+            titleColor: '#8BA4C4',
+            bodyColor: '#D8E6F7',
+            padding: 10,
+            callbacks: {
+              title: (items) => `Episode ${items[0].label}`,
+              label: (item) => {
+                if (item.datasetIndex === 1) return `Drift  Δt: ${item.raw.delta_t?.toFixed(3) ?? '—'} s`;
+                return `Confidence: ${Number(item.raw.y ?? item.raw).toFixed(4)}`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'Episode', color: '#3D5478', font: { size: 11 } },
+            grid: { color: 'rgba(28,45,71,0.6)' },
+            ticks: { color: '#3D5478', maxTicksLimit: 10, font: { size: 11 } },
+          },
+          y: {
+            min: 0, max: 1.05,
+            title: { display: true, text: 'Confidence', color: '#3D5478', font: { size: 11 } },
+            grid: { color: 'rgba(28,45,71,0.6)' },
+            ticks: { color: '#3D5478', font: { size: 11 } },
+          },
+        },
+      },
+    });
+  }
+
+  function pushEpisode(ev) {
+    confData.push({ x: ev.run_id, y: ev.confidence });
+    if (ev.drift) {
+      driftData.push({ x: ev.run_id, y: ev.confidence, delta_t: ev.delta_t });
+    }
+    // keep tau line in sync with x range
+    const tauDataset = chart.data.datasets[2];
+    const maxX = ev.run_id;
+    tauDataset.data = [{ x: 0, y: TAU }, { x: maxX, y: TAU }];
+    chart.update('none');
+  }
+
+  // ── KPI updates ────────────────────────────────────────────────────────────
+  function setKPI(id, val) {
+    document.getElementById(id).textContent = val;
+  }
+
+  function showMetrics(m) {
+    setKPI('kpi-nrr',   m.nrr.toFixed(3));
+    setKPI('kpi-med',   m.med_ttr_a.toFixed(2) + 's');
+    setKPI('kpi-mtbf',  m.mtbf.toFixed(2) + 's');
+    setKPI('kpi-drift', (m.drift_rate * 100).toFixed(1) + '%');
+  }
+
+  // ── Status helpers ─────────────────────────────────────────────────────────
+  function setStatus(state, text) {
+    const dot = document.getElementById('status-dot');
+    dot.className = 'status-dot ' + state;
+    document.getElementById('status-text').textContent = text;
+  }
+
+  function setProgress(pct) {
+    document.getElementById('progress-fill').style.width = pct + '%';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+
+  function clearError() {
+    const el = document.getElementById('error-msg');
+    el.textContent = '';
+    el.classList.remove('visible');
+  }
+
+  // ── Run ────────────────────────────────────────────────────────────────────
+  async function startRun() {
+    clearError();
+    const nRuns = parseInt(document.getElementById('n-runs').value, 10);
+    const seed  = parseInt(document.getElementById('seed').value, 10);
+
+    const body = {
+      provider: selectedProvider,
+      n_runs: nRuns,
+      seed: isNaN(seed) ? 42 : seed,
+      simulate_latency: true,
+    };
+
+    if (selectedProvider === 'azure_openai') {
+      body.azure_endpoint   = document.getElementById('azure-endpoint').value.trim();
+      body.azure_deployment = document.getElementById('azure-deployment').value.trim();
+      body.api_key          = document.getElementById('api-key').value;
+
+      if (!body.azure_endpoint || !body.azure_deployment || !body.api_key) {
+        showError('Endpoint, deployment, and API key are all required for Azure OpenAI.');
+        return;
+      }
+    }
+
+    document.getElementById('run-btn').disabled = true;
+    setStatus('running', 'Running');
+    setProgress(2);
+    initChart(nRuns);
+
+    let res;
+    try {
+      res = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (err) {
+      showError('Could not reach the server.');
+      reset();
+      return;
+    } finally {
+      // Clear key from memory as soon as the request is dispatched
+      if (body.api_key) body.api_key = '';
+      if (selectedProvider === 'azure_openai') {
+        document.getElementById('api-key').value = '';
+      }
+    }
+
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      showError(detail.detail || `Server error ${res.status}`);
+      reset();
+      return;
+    }
+
+    const { session_id } = await res.json();
+    const es = new EventSource(`/api/stream/${session_id}`);
+
+    es.onmessage = (e) => {
+      const ev = JSON.parse(e.data);
+
+      if (ev.type === 'episode') {
+        const pct = Math.round((ev.run_id + 1) / ev.total * 100);
+        setProgress(pct);
+        setStatus('running', `${ev.run_id + 1} / ${ev.total}`);
+        pushEpisode(ev);
+      }
+
+      if (ev.type === 'complete') {
+        showMetrics(ev.metrics);
+        setProgress(100);
+        setStatus('done', `Done — ${ev.metrics.n_runs} episodes`);
+        es.close();
+        document.getElementById('run-btn').disabled = false;
+        setTimeout(() => setProgress(0), 1200);
+      }
+
+      if (ev.type === 'error') {
+        showError(ev.message);
+        es.close();
+        reset();
+      }
+    };
+
+    es.onerror = () => {
+      showError('Stream interrupted.');
+      es.close();
+      reset();
+    };
+  }
+
+  function reset() {
+    document.getElementById('run-btn').disabled = false;
+    setStatus('idle', 'Idle');
+    setProgress(0);
+  }
+</script>
+</body>
+</html>
