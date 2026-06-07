@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 
@@ -39,7 +39,7 @@ def _load_dotenv(env_path: str | Path | None = None) -> None:
             return
 
 
-class ProviderKind(str, Enum):
+class ProviderKind(StrEnum):
     MOCK = "mock"
     BEDROCK = "bedrock"
     AZURE_OPENAI = "azure_openai"
