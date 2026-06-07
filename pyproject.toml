@@ -66,9 +66,9 @@ mttr-a = "mttr_a.__main__:main"
 where = ["."]
 include = ["mttr_a*"]
 
-[tool.setuptools.py-modules]
+[tool.setuptools]
 # Include the single-file simulation module alongside the package
-mttr_a_simulation = "mttr_a_simulation"
+py-modules = ["mttr_a_simulation"]
 
 [tool.pytest.ini_options]
 markers = [
