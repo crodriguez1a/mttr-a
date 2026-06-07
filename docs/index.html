@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MTTR-A</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #070C16;
+      --surface:   #0D1526;
+      --surface-2: #131F35;
+      --border:    #1C2D47;
+      --border-2:  #243852;
+      --text:      #D8E6F7;
+      --text-2:    #8BA4C4;
+      --muted:     #3D5478;
+      --blue:      #4B9EFF;
+      --blue-dim:  rgba(75,158,255,0.12);
+      --green:     #22D47A;
+      --green-dim: rgba(34,212,122,0.12);
+      --amber:     #F5A623;
+      --amber-dim: rgba(245,166,35,0.12);
+      --red:       #F05252;
+      --red-dim:   rgba(240,82,82,0.12);
+      --radius:    8px;
+      --mono:      'JetBrains Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-rows: 52px 1fr;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .wordmark {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: 0.04em;
+    }
+    .wordmark span { color: var(--blue); }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .status-dot.idle    { background: var(--muted); }
+    .status-dot.running { background: var(--blue); box-shadow: 0 0 6px var(--blue); animation: pulse 1.4s infinite; }
+    .status-dot.done    { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.error   { background: var(--red); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.35; }
+    }
+
+    .progress-track {
+      position: fixed;
+      top: 52px; left: 0; right: 0;
+      height: 2px;
+      background: transparent;
+      z-index: 100;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--blue);
+      transition: width 0.3s ease;
+      box-shadow: 0 0 8px var(--blue);
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    aside {
+      border-right: 1px solid var(--border);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+      background: var(--surface);
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .provider-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .pill {
+      padding: 8px 0;
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-2);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .pill:hover { border-color: var(--blue); color: var(--text); }
+    .pill.active {
+      background: var(--blue-dim);
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+    }
+    .field select {
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    .field select:focus { border-color: var(--blue); }
+    .field select option { background: var(--surface-2); }
+
+    .field input[type="text"],
+    .field input[type="password"] {
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--blue); }
+    .field input::placeholder { color: var(--muted); }
+
+    .key-wrap { position: relative; }
+    .key-wrap input { width: 100%; padding-right: 36px; }
+
+    #custom-prompt {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 8px 10px;
+      outline: none;
+      resize: vertical;
+      min-height: 80px;
+      line-height: 1.5;
+      transition: border-color 0.15s;
+    }
+    #custom-prompt:focus { border-color: var(--blue); }
+    #custom-prompt::placeholder { color: var(--muted); }
+
+    .chip-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+    .chip {
+      padding: 3px 9px;
+      border: 1px solid var(--border-2);
+      border-radius: 20px;
+      background: transparent;
+      color: var(--text-2);
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .chip:hover { border-color: var(--blue); color: var(--blue); }
+
+    .run-desc {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 7px;
+    }
+    .run-desc.live { color: var(--amber); }
+
+    .run-btn {
+      width: 100%;
+      padding: 11px;
+      background: var(--blue);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: opacity 0.15s, box-shadow 0.15s;
+    }
+    .run-btn:hover { opacity: 0.88; box-shadow: 0 0 16px rgba(75,158,255,0.35); }
+    .run-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+    .error-msg {
+      display: none;
+      background: var(--red-dim);
+      border: 1px solid var(--red);
+      border-radius: var(--radius);
+      color: var(--red);
+      font-size: 12px;
+      padding: 8px 10px;
+      line-height: 1.4;
+    }
+    .error-msg.visible { display: block; }
+
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    /* KPI tiles */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px 14px;
+      position: relative;
+      z-index: 1;
+    }
+    .kpi:hover { z-index: 10; }
+    .kpi::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--border);
+    }
+    .kpi.blue::after  { background: var(--blue); }
+    .kpi.green::after { background: var(--green); }
+    .kpi.amber::after { background: var(--amber); }
+    .kpi.red::after   { background: var(--red); }
+
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .kpi-val {
+      font-family: var(--mono);
+      font-size: 26px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 6px;
+      transition: color 0.3s;
+    }
+    .kpi.blue  .kpi-val { color: var(--blue); }
+    .kpi.green .kpi-val { color: var(--green); }
+    .kpi.amber .kpi-val { color: var(--amber); }
+    .kpi.red   .kpi-val { color: var(--red); }
+    .kpi-sub { font-size: 11px; color: var(--muted); }
+
+    .tip {
+      font-size: 10px;
+      color: var(--muted);
+      cursor: default;
+      margin-left: 4px;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    #tooltip {
+      display: none;
+      position: fixed;
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+      padding: 9px 12px;
+      border-radius: 6px;
+      width: 240px;
+      line-height: 1.5;
+      z-index: 9999;
+      white-space: normal;
+      pointer-events: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .chart-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 20px 16px;
+      flex: 1;
+      min-height: 320px;
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .chart-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-2);
+    }
+    .chart-legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--text-2);
+    }
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .chart-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 240px;
+    }
+
+    .chart-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .chart-placeholder svg { opacity: 0.25; }
+    .chart-placeholder.hidden { display: none; }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); }
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* Step log */
+    .step-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 12px; }
+    .step-table th {
+      color: var(--muted); font-weight: 600; text-align: left;
+      padding: 5px 8px; border-bottom: 1px solid var(--border);
+      letter-spacing: 0.05em; text-transform: uppercase; font-size: 10px;
+    }
+    .step-table td {
+      padding: 5px 8px; border-bottom: 1px solid rgba(28,45,71,0.5);
+      color: var(--text-2); vertical-align: top;
+    }
+    .step-table td:first-child { font-family: var(--mono); color: var(--muted); }
+    .step-table td.excerpt { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .step-table td.conf { font-family: var(--mono); }
+    .low-conf  { color: var(--amber) !important; }
+    .very-low-conf { color: var(--red) !important; }
+
+    /* event badges */
+    .badge {
+      border-radius: 4px; padding: 1px 6px;
+      font-size: 10px; font-weight: 600; font-family: var(--mono);
+      border: 1px solid;
+    }
+    .badge-fault     { background: var(--red-dim);   border-color: var(--red);   color: var(--red);   }
+    .badge-recovered { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+    .fault-row td { background: rgba(240,82,82,0.04); }
+  </style>
+</head>
+<body>
+<div id="tooltip"></div>
+<div class="shell">
+  <header>
+    <div class="wordmark">MTTR<span>-A</span></div>
+    <div class="status-badge">
+      <div class="status-dot idle" id="status-dot"></div>
+      <span id="status-text">Idle</span>
+    </div>
+  </header>
+
+  <div class="progress-track">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+
+  <div id="task-panel" style="display:grid; grid-template-columns:280px 1fr; overflow:hidden; height:100%;">
+    <!-- Sidebar -->
+    <aside>
+      <div>
+        <div class="section-label">Task Description <span class="tip" data-tip="A multi-step reasoning task for the agent. The agent will call tools to search for evidence and perform calculations across multiple turns. Groundedness is scored after each turn against the top retrieved document.">ⓘ</span></div>
+        <textarea id="task-input" id="custom-prompt" placeholder="Analyze the trade-offs between distributed rate limiting approaches and recommend one for a high-traffic API..."></textarea>
+        <div class="chip-row">
+          <button class="chip" onclick="setTask('ratelimit')">Rate Limiting</button>
+          <button class="chip" onclick="setTask('slo')">SLO / MTBF</button>
+          <button class="chip" onclick="setTask('rag')">RAG Design</button>
+          <button class="chip" onclick="setTask('chaos')">Chaos Eng</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Provider <span class="tip" data-tip="Claude uses Anthropic's tool use API. Gemini uses Google's function calling API. Both drive a real multi-turn agent loop — no simulation.">ⓘ</span></div>
+        <div class="provider-row">
+          <button class="pill active" data-task-provider="claude" onclick="selectTaskProvider(this)">Claude</button>
+          <button class="pill" data-task-provider="gemini" onclick="selectTaskProvider(this)">Gemini</button>
+        </div>
+      </div>
+
+      <div id="task-claude-fields" style="display:flex;flex-direction:column;gap:12px;">
+        <div class="field">
+          <label>Model</label>
+          <select id="task-claude-model">
+            <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+            <option value="claude-haiku-4-5-20251001">claude-haiku-4-5</option>
+            <option value="claude-opus-4-7">claude-opus-4-7</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>API Key</label>
+          <div class="key-wrap">
+            <input type="password" id="task-claude-key" placeholder="sk-ant-…" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div id="task-gemini-fields" style="display:none;flex-direction:column;gap:12px;">
+        <div class="field">
+          <label>Model</label>
+          <select id="task-gemini-model">
+            <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>API Key</label>
+          <div class="key-wrap">
+            <input type="password" id="task-gemini-key" placeholder="AIza…" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="error-msg" id="task-error-msg"></div>
+
+      <div style="margin-top:auto;padding-top:8px;">
+        <button class="run-btn" id="task-btn" onclick="startTask()">Run Agent Task</button>
+        <div class="run-desc live">Live API calls · multi-turn tool use · tokens billed</div>
+        <button class="run-btn" id="mock-btn" onclick="startMock()" style="margin-top:10px;background:var(--surface-2);border:1px solid var(--border-2);color:var(--text-2);">Run Mock Demo</button>
+        <div class="run-desc" style="color:var(--muted);">No API key · simulated drift &amp; natural recovery</div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <div class="content">
+
+      <!-- Description banner -->
+      <div style="background:var(--surface-2);border:1px solid var(--border-2);border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;line-height:1.7;">
+        <div style="font-size:12px;font-wseight:600;color:var(--text);margin-bottom:6px;">MTTR-A for real agents</div>
+        <div style="font-size:12px;color:var(--text-2);">
+          Agent reasoning can degrade silently while the system keeps running. MTTR-A brings classical reliability measurement to this failure mode: how long does it take an agent to return to coherent operation after drift is detected?<br><br>
+          Run a task and watch it live. Each inference call is scored for groundedness against what the agent retrieved. When the score drops, a <strong style="color:var(--red)">fault</strong> is logged and the clock starts. When the agent recovers on its own, the clock stops. That elapsed time is <strong>δt</strong> — the same quantity as MTTR in your existing reliability stack, applied to reasoning quality instead of uptime.
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <div class="kpi-row">
+        <div class="kpi blue">
+          <div class="kpi-label">NRR <span class="tip" data-tip="Normalized Recovery Ratio: 1 − MedTTR-A / MTBF. Near 1 = the agent recovers fast relative to how often it drifts. Near 0 = it spends most of its time recovering. Defined in the MTTR-A paper as a dimensionless reliability indicator.">ⓘ</span></div>
+          <div class="kpi-val" id="task-kpi-nrr">—</div>
+          <div class="kpi-sub">Accumulated across tasks</div>
+        </div>
+        <div class="kpi amber">
+          <div class="kpi-label">MedTTR-A <span class="tip" data-tip="Median δt across episodes — wall-clock time from fault detection to recovery, spanning real inference calls. Median is used because outliers (slow API calls) skew the mean.">ⓘ</span></div>
+          <div class="kpi-val" id="task-kpi-med">—</div>
+          <div class="kpi-sub">Median δt (s)</div>
+        </div>
+        <div class="kpi green">
+          <div class="kpi-label">MTBF <span class="tip" data-tip="Mean Time Between cognitive Faults — average stable operating interval between drift events across all tasks in this session. Longer is better.">ⓘ</span></div>
+          <div class="kpi-val" id="task-kpi-mtbf">—</div>
+          <div class="kpi-sub">Avg stable interval (s)</div>
+        </div>
+        <div class="kpi red">
+          <div class="kpi-label">Fault Rate <span class="tip" data-tip="Fraction of tasks where at least one inference call fell below the groundedness threshold τ = 0.6, triggering a cognitive fault and recovery reflex. Called 'drift rate' in some formulations of the paper.">ⓘ</span></div>
+          <div class="kpi-val" id="task-kpi-drift">—</div>
+          <div class="kpi-sub">Tasks with cognitive fault</div>
+        </div>
+      </div>
+
+      <!-- Confidence timeline chart -->
+      <div class="chart-panel" style="margin-bottom:16px;">
+        <div class="chart-header">
+          <div class="chart-title">
+            Groundedness per Inference Call
+            <span class="tip" data-tip="cos(step_output_embedding, grounding_doc_embedding) — how closely each turn's output tracks the retrieved evidence. Scored externally after each inference call without modifying the agent.">ⓘ</span>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Groundedness</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Fault</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Recovered</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--muted);opacity:.5"></div>τ = 0.6</div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-placeholder" id="task-chart-placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span>Run an agent task to see cognitive fault detection</span>
+          </div>
+          <canvas id="task-chart" style="display:none"></canvas>
+        </div>
+      </div>
+
+      <!-- Step log table -->
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div class="chart-title">
+            Inference Call Log
+            <span class="tip" data-tip="One row per agent turn. Groundedness is only scored after the agent's first retrieval — before that it shows —. FAULT = confidence dropped below τ. RECOVERED = confidence returned above τ. No external intervention — recovery is observed, not forced.">ⓘ</span>
+          </div>
+        </div>
+        <table class="step-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Reasoning</th>
+              <th>Tool</th>
+              <th>Groundedness</th>
+              <th>Event</th>
+            </tr>
+          </thead>
+          <tbody id="task-step-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const TAU = 0.6;
+
+  // ─── Status & UI helpers ───────────────────────────────────────────────────
+
+  function setStatus(state, text) {
+    const dot = document.getElementById('status-dot');
+    dot.className = 'status-dot ' + state;
+    document.getElementById('status-text').textContent = text;
+  }
+
+  // Tooltip engine
+  const _tt = document.getElementById('tooltip');
+  document.addEventListener('mouseover', (e) => {
+    const el = e.target.closest('.tip');
+    if (!el) return;
+    _tt.textContent = el.dataset.tip || '';
+    _tt.style.display = 'block';
+    _positionTooltip(el);
+  });
+  document.addEventListener('mouseout', (e) => {
+    if (!e.target.closest('.tip')) return;
+    _tt.style.display = 'none';
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (_tt.style.display === 'none') return;
+    const el = e.target.closest('.tip');
+    if (el) _positionTooltip(el);
+  });
+  function _positionTooltip(el) {
+    const r = el.getBoundingClientRect();
+    const tw = 240, th = _tt.offsetHeight || 80, margin = 8;
+    let top = r.top - th - margin;
+    let left = r.left + r.width / 2 - tw / 2;
+    if (top < margin) top = r.bottom + margin;
+    left = Math.max(margin, Math.min(left, window.innerWidth - tw - margin));
+    _tt.style.top = top + 'px';
+    _tt.style.left = left + 'px';
+    _tt.style.width = tw + 'px';
+  }
+
+  // Provider selection
+  let taskSelectedProvider = 'claude';
+  function selectTaskProvider(el) {
+    document.querySelectorAll('[data-task-provider]').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    taskSelectedProvider = el.dataset.taskProvider;
+    document.getElementById('task-claude-fields').style.display = taskSelectedProvider === 'claude' ? 'flex' : 'none';
+    document.getElementById('task-gemini-fields').style.display = taskSelectedProvider === 'gemini' ? 'flex' : 'none';
+  }
+
+  // Task examples
+  const TASK_EXAMPLES = {
+    ratelimit: 'Analyze the trade-offs between token-bucket and sliding-window rate limiting. Search for supporting evidence, then recommend one approach for a high-traffic API handling 50k req/s.',
+    slo:       'Explain how MTBF and MTTR relate to SLO error budgets. Search for definitions, then calculate: given a 99.9% SLO, how many minutes of downtime are allowed per month, and what MTTR is needed if failures occur twice a day?',
+    rag:       'Compare vector database indexing strategies (HNSW vs IVF) for a RAG pipeline serving 10M documents. Search for technical details and recommend an approach with justification.',
+    chaos:     'Explain chaos engineering principles and how circuit breakers prevent cascading failures. Search for evidence then describe a concrete experiment to validate a circuit breaker implementation.',
+  };
+  function setTask(key) {
+    document.getElementById('task-input').value = TASK_EXAMPLES[key] || '';
+  }
+
+  // ─── Chart ────────────────────────────────────────────────────────────────
+
+  let taskChart = null;
+  let confData = [], faultData = [], recoveredData = [];
+  let lastTurn = 0;
+
+  function initTaskChart() {
+    const canvas = document.getElementById('task-chart');
+    document.getElementById('task-chart-placeholder').classList.add('hidden');
+    canvas.style.display = 'block';
+    if (taskChart) taskChart.destroy();
+    confData = []; faultData = []; recoveredData = [];
+    lastTurn = 0;
+
+    taskChart = new Chart(canvas, {
+      data: {
+        datasets: [
+          {
+            type: 'line',
+            label: 'Groundedness',
+            data: confData,
+            borderColor: 'rgba(75,158,255,0.85)',
+            backgroundColor: 'rgba(75,158,255,0.07)',
+            borderWidth: 1.5,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            fill: true,
+            tension: 0.3,
+            order: 4,
+          },
+          {
+            type: 'scatter',
+            label: 'Fault',
+            data: faultData,
+            backgroundColor: 'rgba(240,82,82,0.9)',
+            borderColor: 'rgba(240,82,82,0.4)',
+            borderWidth: 1,
+            pointRadius: 7,
+            pointHoverRadius: 9,
+            order: 1,
+          },
+          {
+            type: 'scatter',
+            label: 'Recovered',
+            data: recoveredData,
+            backgroundColor: 'rgba(34,212,122,0.9)',
+            borderColor: 'rgba(34,212,122,0.4)',
+            borderWidth: 1,
+            pointRadius: 7,
+            pointHoverRadius: 9,
+            order: 2,
+          },
+          {
+            type: 'line',
+            label: 'τ',
+            data: [],
+            borderColor: 'rgba(61,84,120,0.7)',
+            borderWidth: 1,
+            borderDash: [4, 3],
+            pointRadius: 0,
+            fill: false,
+            order: 4,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(13,21,38,0.95)',
+            borderColor: 'rgba(28,45,71,1)',
+            borderWidth: 1,
+            titleColor: '#8BA4C4',
+            bodyColor: '#D8E6F7',
+            padding: 10,
+            callbacks: {
+              title: (items) => `Turn ${Number(items[0].raw.x ?? items[0].label) + 1}`,
+              label: (item) => {
+                if (item.datasetIndex === 1) return 'FAULT — confidence below τ';
+                if (item.datasetIndex === 2) return 'RECOVERED — confidence above τ';
+                return `Groundedness: ${Number(item.raw.y ?? item.raw).toFixed(4)}`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'Agent Turn', color: '#3D5478', font: { size: 11 } },
+            grid: { color: 'rgba(28,45,71,0.6)' },
+            ticks: { color: '#3D5478', font: { size: 11 } },
+          },
+          y: {
+            min: 0, max: 1.05,
+            title: { display: true, text: 'Groundedness', color: '#3D5478', font: { size: 11 } },
+            grid: { color: 'rgba(28,45,71,0.6)' },
+            ticks: { color: '#3D5478', font: { size: 11 } },
+          },
+        },
+      },
+    });
+  }
+
+  function updateTauLine(maxX) {
+    const tauDs = taskChart.data.datasets[3];
+    tauDs.data = [{ x: 0, y: TAU }, { x: Math.max(maxX, 1), y: TAU }];
+  }
+
+  function pushStep(ev) {
+    lastTurn = ev.turn;
+    if (ev.confidence !== null && ev.confidence !== undefined) {
+      confData.push({ x: ev.turn, y: ev.confidence });
+      if (ev.drift)     faultData.push({ x: ev.turn, y: ev.confidence });
+      if (ev.recovered) recoveredData.push({ x: ev.turn, y: ev.confidence });
+      updateTauLine(ev.turn);
+      taskChart.update('none');
+    }
+
+    const tbody = document.getElementById('task-step-table');
+    const row = document.createElement('tr');
+    row.id = `step-row-${ev.turn}`;
+    if (ev.drift && !ev.recovered) row.classList.add('fault-row');
+
+    const conf = ev.confidence;
+    const confStr = conf !== null && conf !== undefined ? conf.toFixed(4) : '—';
+    const confClass = conf !== null && conf < 0.5 ? 'very-low-conf' : conf !== null && conf < TAU ? 'low-conf' : '';
+    let eventCell = '—';
+    if (ev.recovered) eventCell = '<span class="badge badge-recovered">RECOVERED</span>';
+    else if (ev.drift) eventCell = '<span class="badge badge-fault">FAULT</span>';
+
+    row.innerHTML = `
+      <td>${ev.turn + 1}</td>
+      <td class="excerpt" title="${(ev.reasoning_excerpt || '').replace(/"/g, '&quot;')}">${ev.reasoning_excerpt || '—'}</td>
+      <td id="tool-cell-${ev.turn}">${ev.tool_called || '—'}</td>
+      <td class="conf ${confClass}">${confStr}</td>
+      <td>${eventCell}</td>
+    `;
+    tbody.appendChild(row);
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function pushToolResult(ev) {
+    const cell = document.getElementById(`tool-cell-${ev.turn}`);
+    if (cell) {
+      cell.innerHTML = `${ev.tool_name} <span style="color:var(--muted);font-family:var(--mono);font-size:10px;">${ev.latency_s}s</span>`;
+    }
+  }
+
+  function showMetrics(m) {
+    if (!m) return;
+    const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    if (m.nrr        !== undefined) s('task-kpi-nrr',  typeof m.nrr === 'number' ? m.nrr.toFixed(3) : m.nrr);
+    if (m.med_ttr_a  !== undefined) s('task-kpi-med',  typeof m.med_ttr_a === 'number' ? m.med_ttr_a.toFixed(2) + 's' : m.med_ttr_a);
+    if (m.mtbf       !== undefined) s('task-kpi-mtbf', typeof m.mtbf === 'number' ? m.mtbf.toFixed(2) + 's' : m.mtbf);
+    if (m.drift_rate !== undefined) s('task-kpi-drift', typeof m.drift_rate === 'number' ? (m.drift_rate * 100).toFixed(1) + '%' : m.drift_rate);
+  }
+
+  function showTaskError(msg) {
+    const el = document.getElementById('task-error-msg');
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+
+  // ─── Mock Demo ────────────────────────────────────────────────────────────
+
+  async function startMock() {
+    const errEl = document.getElementById('task-error-msg');
+    errEl.textContent = ''; errEl.classList.remove('visible');
+
+    initTaskChart();
+    document.getElementById('task-step-table').innerHTML = '';
+    document.getElementById('task-btn').disabled = true;
+    document.getElementById('mock-btn').disabled = true;
+    setStatus('running', 'Mock simulation running…');
+
+    // Mock scenario matching the Python /api/mock endpoint:
+    // Turn 0: search_corpus (sets evidence), no confidence scored yet
+    // Turn 1-3: stable, confidence 0.82, 0.76, 0.61
+    // Turn 4-5: drift, confidence 0.44, 0.51 (below τ=0.6)
+    // Turn 6: natural recovery, confidence 0.67
+    // Turn 7: conclude tool, breaks loop
+
+    const mockSteps = [
+      { turn: 0, reasoning_excerpt: 'I will search the corpus for relevant evidence on rate limiting.', tool_called: 'search_corpus', confidence: null, drift: false, recovered: false },
+      { turn: 1, reasoning_excerpt: 'Token-bucket allows bursts up to capacity then refills at a fixed rate.', tool_called: null, confidence: 0.82, drift: false, recovered: false },
+      { turn: 2, reasoning_excerpt: 'Sliding-window logs precise timestamps for exact enforcement.', tool_called: null, confidence: 0.76, drift: false, recovered: false },
+      { turn: 3, reasoning_excerpt: 'Distributed rate limiting requires a shared counter via Redis INCR.', tool_called: null, confidence: 0.61, drift: false, recovered: false },
+      { turn: 4, reasoning_excerpt: 'There are many approaches to consider in the broader system design.', tool_called: null, confidence: 0.44, drift: true, recovered: false },
+      { turn: 5, reasoning_excerpt: 'General architectural considerations also apply here for scalability.', tool_called: null, confidence: 0.51, drift: true, recovered: false },
+      { turn: 6, reasoning_excerpt: 'Returning to the evidence: token-bucket is best for high-traffic APIs at 50k req/s.', tool_called: null, confidence: 0.67, drift: false, recovered: true },
+      { turn: 7, reasoning_excerpt: 'Final recommendation prepared with full evidence support.', tool_called: 'conclude', confidence: null, drift: false, recovered: false },
+    ];
+
+    const mockToolResults = [
+      { turn: 0, tool_name: 'search_corpus', latency_s: 0.021 },
+      { turn: 7, tool_name: 'conclude', latency_s: 0.001 },
+    ];
+
+    // Simulate inference latency between turns
+    const delays = [400, 800, 750, 720, 680, 710, 800, 500];
+
+    const taskStartTime = performance.now() / 1000;
+    let faultTime = null;
+    let recoveryTime = null;
+
+    for (let i = 0; i < mockSteps.length; i++) {
+      await new Promise(r => setTimeout(r, delays[i] || 600));
+      const step = mockSteps[i];
+      pushStep(step);
+
+      // Emit tool result if applicable
+      const toolResult = mockToolResults.find(tr => tr.turn === step.turn);
+      if (toolResult) {
+        await new Promise(r => setTimeout(r, 80));
+        pushToolResult(toolResult);
+      }
+
+      // Track fault/recovery times for metrics
+      if (step.drift && !step.recovered && faultTime === null) {
+        faultTime = performance.now() / 1000;
+      }
+      if (step.recovered && faultTime !== null && recoveryTime === null) {
+        recoveryTime = performance.now() / 1000;
+      }
+    }
+
+    // Compute metrics
+    const delta_t = (faultTime !== null && recoveryTime !== null)
+      ? (recoveryTime - faultTime)
+      : (faultTime !== null ? (performance.now() / 1000 - faultTime) : 0);
+
+    const drift_detected = mockSteps.some(s => s.drift);
+    const nrr = delta_t > 0 ? Math.max(0, 1 - delta_t / 6.73).toFixed(3) : '1.000';
+    const drift_rate = drift_detected ? 1.0 : 0.0;
+
+    // MTBF: time from start to first fault, or total time if no fault
+    const mtbf = faultTime !== null ? (faultTime - taskStartTime) : (performance.now() / 1000 - taskStartTime);
+
+    const metrics = {
+      nrr: parseFloat(nrr),
+      med_ttr_a: parseFloat(delta_t.toFixed(2)),
+      mtbf: parseFloat(mtbf.toFixed(2)),
+      drift_rate,
+    };
+
+    showMetrics(metrics);
+    setStatus('done', 'Mock complete');
+    document.getElementById('task-btn').disabled = false;
+    document.getElementById('mock-btn').disabled = false;
+  }
+
+  // ─── Embedding (lazy-loaded for live runs) ────────────────────────────────
+
+  let _embedder = null;
+  let _corpusData = null; // { docs, embeddings }
+
+  async function getEmbedder() {
+    if (_embedder) return _embedder;
+    setStatus('running', 'Loading embedding model…');
+    const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
+    _embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: true });
+    return _embedder;
+  }
+
+  async function getCorpusData() {
+    if (_corpusData) return _corpusData;
+    const res = await fetch('./corpus.json');
+    if (!res.ok) throw new Error('Could not load corpus.json');
+    _corpusData = await res.json();
+    return _corpusData;
+  }
+
+  async function embedText(text) {
+    const emb = await _embedder(text, { pooling: 'mean', normalize: true });
+    // emb.data is a Float32Array
+    return Array.from(emb.data);
+  }
+
+  function cosineSim(a, b) {
+    let dot = 0, na = 0, nb = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+      na += a[i] * a[i];
+      nb += b[i] * b[i];
+    }
+    if (na === 0 || nb === 0) return 0;
+    return dot / (Math.sqrt(na) * Math.sqrt(nb));
+  }
+
+  // ─── Tool implementations ─────────────────────────────────────────────────
+
+  let _evidenceEmb = null;
+
+  async function toolSearchCorpus(query) {
+    const corpus = await getCorpusData();
+    const queryEmb = await embedText(query);
+    let best = -Infinity, bestIdx = 0;
+    for (let i = 0; i < corpus.embeddings.length; i++) {
+      const sim = cosineSim(queryEmb, corpus.embeddings[i]);
+      if (sim > best) { best = sim; bestIdx = i; }
+    }
+    _evidenceEmb = corpus.embeddings[bestIdx];
+    return corpus.docs[bestIdx];
+  }
+
+  function toolCalculator(expression) {
+    if (/[^0-9+\-*/.() ]/.test(expression)) return 'Error: unsafe expression';
+    try {
+      // eslint-disable-next-line no-new-func
+      return String(Function('"use strict";return(' + expression + ')')());
+    } catch (e) {
+      return 'Error: ' + e.message;
+    }
+  }
+
+  // ─── Live Agent Loop ──────────────────────────────────────────────────────
+
+  const CLAUDE_TOOLS = [
+    { name: 'search_corpus', description: 'Search the knowledge corpus for relevant information.', input_schema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
+    { name: 'calculator',    description: 'Evaluate a mathematical expression safely.',            input_schema: { type: 'object', properties: { expression: { type: 'string' } }, required: ['expression'] } },
+    { name: 'conclude',      description: 'Provide the final answer and end the task.',            input_schema: { type: 'object', properties: { answer: { type: 'string' } }, required: ['answer'] } },
+  ];
+
+  const GEMINI_TOOLS = [{ function_declarations: [
+    { name: 'search_corpus', description: 'Search the knowledge corpus.', parameters: { type: 'OBJECT', properties: { query: { type: 'STRING', description: 'search query' } }, required: ['query'] } },
+    { name: 'calculator',    description: 'Evaluate a math expression.',  parameters: { type: 'OBJECT', properties: { expression: { type: 'STRING', description: 'math expression' } }, required: ['expression'] } },
+    { name: 'conclude',      description: 'Final answer.',                parameters: { type: 'OBJECT', properties: { answer: { type: 'STRING', description: 'final answer' } }, required: ['answer'] } },
+  ]}];
+
+  async function dispatchTool(toolName, toolInput, turn) {
+    const t0 = performance.now();
+    let result;
+    if (toolName === 'search_corpus') {
+      result = await toolSearchCorpus(toolInput.query || '');
+    } else if (toolName === 'calculator') {
+      result = toolCalculator(toolInput.expression || '');
+    } else if (toolName === 'conclude') {
+      result = toolInput.answer || '';
+    } else {
+      result = `Unknown tool: ${toolName}`;
+    }
+    const latency_s = ((performance.now() - t0) / 1000).toFixed(3);
+    pushToolResult({ turn, tool_name: toolName, latency_s });
+    return result;
+  }
+
+  async function scoreStep(reasoningText) {
+    if (!_evidenceEmb || !reasoningText) return null;
+    const rEmb = await embedText(reasoningText);
+    return cosineSim(rEmb, _evidenceEmb);
+  }
+
+  // Track per-session drift state for confidence scoring
+  let _prevDrift = false;
+
+  function computeStepFlags(confidence) {
+    if (confidence === null) return { drift: false, recovered: false };
+    const isDrift = confidence < TAU;
+    const isRecovered = _prevDrift && !isDrift;
+    _prevDrift = isDrift;
+    return { drift: isDrift, recovered: isRecovered };
+  }
+
+  async function runClaude(task, apiKey, model) {
+    const messages = [{ role: 'user', content: task }];
+    const maxTurns = 12;
+
+    for (let turn = 0; turn < maxTurns; turn++) {
+      setStatus('running', `Agent running… turn ${turn + 1}`);
+      const t0 = performance.now();
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 1024,
+          tools: CLAUDE_TOOLS,
+          messages,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `Claude API error ${res.status}`);
+      }
+
+      const data = await res.json();
+      const latency_s = ((performance.now() - t0) / 1000).toFixed(3);
+
+      const reasoningText = data.content
+        .filter(b => b.type === 'text')
+        .map(b => b.text)
+        .join(' ')
+        .trim();
+
+      const toolUseBlocks = data.content.filter(b => b.type === 'tool_use');
+      const toolCalled = toolUseBlocks[0]?.name || null;
+      const isConclude = toolUseBlocks.some(b => b.name === 'conclude');
+
+      // Score after evidence is set (after first search_corpus)
+      const confidence = await scoreStep(reasoningText || task);
+      const { drift, recovered } = computeStepFlags(confidence);
+
+      pushStep({
+        turn,
+        confidence,
+        reasoning_excerpt: (reasoningText || task).slice(0, 80),
+        tool_called: toolCalled,
+        drift,
+        recovered,
+      });
+
+      if (data.stop_reason === 'end_turn' || isConclude) break;
+      if (data.stop_reason !== 'tool_use') break;
+
+      messages.push({ role: 'assistant', content: data.content });
+
+      const toolResults = [];
+      for (const block of toolUseBlocks) {
+        const result = await dispatchTool(block.name, block.input, turn);
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: block.id,
+          content: String(result),
+        });
+      }
+      messages.push({ role: 'user', content: toolResults });
+    }
+  }
+
+  async function runGemini(task, apiKey, model) {
+    const contents = [{ role: 'user', parts: [{ text: task }] }];
+    const maxTurns = 12;
+
+    for (let turn = 0; turn < maxTurns; turn++) {
+      setStatus('running', `Agent running… turn ${turn + 1}`);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents, tools: GEMINI_TOOLS }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `Gemini API error ${res.status}`);
+      }
+
+      const data = await res.json();
+      const parts = data.candidates?.[0]?.content?.parts || [];
+
+      const reasoningParts = parts.filter(p => p.text).map(p => p.text);
+      const reasoningText = reasoningParts.join(' ').trim();
+
+      const functionCalls = parts.filter(p => p.function_call);
+      const toolCalled = functionCalls[0]?.function_call?.name || null;
+      const isConclude = functionCalls.some(p => p.function_call?.name === 'conclude');
+
+      const confidence = await scoreStep(reasoningText || task);
+      const { drift, recovered } = computeStepFlags(confidence);
+
+      pushStep({
+        turn,
+        confidence,
+        reasoning_excerpt: (reasoningText || task).slice(0, 80),
+        tool_called: toolCalled,
+        drift,
+        recovered,
+      });
+
+      const finishReason = data.candidates?.[0]?.finishReason;
+      if (isConclude || finishReason === 'STOP' || functionCalls.length === 0) break;
+
+      // Append model turn
+      contents.push({ role: 'model', parts });
+
+      // Execute tools and append results
+      const toolResponseParts = [];
+      for (const part of functionCalls) {
+        const fc = part.function_call;
+        const result = await dispatchTool(fc.name, fc.args || {}, turn);
+        toolResponseParts.push({
+          function_response: { name: fc.name, response: { result: String(result) } },
+        });
+      }
+      contents.push({ role: 'user', parts: toolResponseParts });
+    }
+  }
+
+  async function startTask() {
+    const errEl = document.getElementById('task-error-msg');
+    errEl.textContent = ''; errEl.classList.remove('visible');
+
+    const task = document.getElementById('task-input').value.trim();
+    if (!task) { showTaskError('Task description is required.'); return; }
+
+    const apiKey = taskSelectedProvider === 'claude'
+      ? document.getElementById('task-claude-key').value.trim()
+      : document.getElementById('task-gemini-key').value.trim();
+    if (!apiKey) { showTaskError('API key is required.'); return; }
+
+    const model = taskSelectedProvider === 'claude'
+      ? document.getElementById('task-claude-model').value
+      : document.getElementById('task-gemini-model').value;
+
+    initTaskChart();
+    document.getElementById('task-step-table').innerHTML = '';
+    document.getElementById('task-btn').disabled = true;
+    document.getElementById('mock-btn').disabled = true;
+    _evidenceEmb = null;
+    _prevDrift = false;
+
+    const taskStartTime = performance.now() / 1000;
+
+    try {
+      // Lazy-load embedder
+      setStatus('running', 'Loading embedding model…');
+      await getEmbedder();
+      await getCorpusData();
+      setStatus('running', 'Agent running…');
+
+      if (taskSelectedProvider === 'claude') {
+        await runClaude(task, apiKey, model);
+      } else {
+        await runGemini(task, apiKey, model);
+      }
+
+      // Compute metrics from step table rows
+      const rows = document.querySelectorAll('#task-step-table tr');
+      let driftDetected = false;
+      let faultTime = null;
+      let recoveryTime = null;
+
+      rows.forEach(row => {
+        const eventCell = row.querySelector('td:last-child');
+        if (eventCell) {
+          if (eventCell.querySelector('.badge-fault') && faultTime === null) {
+            faultTime = performance.now() / 1000;
+            driftDetected = true;
+          }
+          if (eventCell.querySelector('.badge-recovered') && faultTime !== null && recoveryTime === null) {
+            recoveryTime = performance.now() / 1000;
+          }
+        }
+      });
+
+      const delta_t = (faultTime !== null && recoveryTime !== null)
+        ? (recoveryTime - faultTime)
+        : (faultTime !== null ? (performance.now() / 1000 - faultTime) : 0);
+
+      const nrr = delta_t > 0 ? Math.max(0, 1 - delta_t / 6.73).toFixed(3) : '1.000';
+      const totalTime = performance.now() / 1000 - taskStartTime;
+      const mtbf = faultTime !== null ? (faultTime - taskStartTime) : totalTime;
+
+      showMetrics({
+        nrr: parseFloat(nrr),
+        med_ttr_a: parseFloat(delta_t.toFixed(2)),
+        mtbf: parseFloat(mtbf.toFixed(2)),
+        drift_rate: driftDetected ? 1.0 : 0.0,
+      });
+
+      setStatus('done', 'Task complete');
+    } catch (err) {
+      showTaskError(err.message || 'Unexpected error');
+      setStatus('error', 'Error');
+    } finally {
+      document.getElementById('task-btn').disabled = false;
+      document.getElementById('mock-btn').disabled = false;
+      // Clear key from DOM
+      if (taskSelectedProvider === 'claude') {
+        document.getElementById('task-claude-key').value = '';
+      } else {
+        document.getElementById('task-gemini-key').value = '';
+      }
+    }
+  }
+</script>
+</body>
+</html>
