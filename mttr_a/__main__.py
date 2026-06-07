@@ -38,7 +38,9 @@ def _build_sink(cfg) -> CompositeSink:
     sinks = [JsonlSink(cfg.telemetry_path)]
 
     if s.cloudwatch:
-        sinks.append(CloudWatchSink(region=cfg.provider.aws_region, namespace=s.cloudwatch_namespace))
+        sinks.append(
+            CloudWatchSink(region=cfg.provider.aws_region, namespace=s.cloudwatch_namespace)
+        )
 
     if s.azure_monitor:
         if not s.applicationinsights_connection_string:

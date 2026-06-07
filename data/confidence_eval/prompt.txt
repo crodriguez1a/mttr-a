@@ -1,1 +1,0 @@
-On a scale from 0.0 to 1.0, how confident are you in the quality and completeness of your previous answer? Reply with a single decimal number only, e.g. 0.82

@@ -108,6 +108,7 @@ class BenchmarkConfig:
     telemetry_path: str = "telemetry.jsonl"
     results_path: str = "results.json"
     verbose: bool = True
+    steps_per_episode: int = 3
 
 
 def load_from_env(env_file: str | Path | None = None) -> BenchmarkConfig:

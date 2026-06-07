@@ -36,16 +36,23 @@ class ProductionRunner:
         provider: BaseLLMProvider,
         sink: TelemetrySink,
         query_pool: list[str] | None = None,
+        corpus_embs=None,
+        corpus_docs: list[str] | None = None,
     ) -> None:
         self._config = config
         self._provider = provider
         self._sink = sink
         self._query_pool = query_pool if query_pool else QUERY_POOL
+        self._corpus_embs = corpus_embs
+        self._corpus_docs = corpus_docs
 
     def run(self) -> SystemMetrics:
         cfg = self._config
         rng = random.Random(cfg.seed)
-        graph = build_graph(self._provider, cfg, seed=cfg.seed)
+        graph = build_graph(
+            self._provider, cfg, seed=cfg.seed,
+            corpus_embs=self._corpus_embs, corpus_docs=self._corpus_docs,
+        )
 
         episodes = []
         stable_intervals: list[float] = []
@@ -63,6 +70,13 @@ class ProductionRunner:
                 "run_id": run_id,
                 "query": query,
                 "response": "",
+                "grounding_doc": "",
+                "grounding_doc_emb": None,
+                "step_index": 0,
+                "max_steps": cfg.steps_per_episode,
+                "step_outputs": [],
+                "step_confidences": [],
+                "drift_step": -1,
                 "confidence": 0.0,
                 "is_drift": False,
                 "reflex_mode": None,

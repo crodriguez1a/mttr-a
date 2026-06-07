@@ -22,7 +22,7 @@ import random
 import statistics
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 # ── Data directory ────────────────────────────────────────────────────────────
 
@@ -44,7 +44,8 @@ class ReflexConfig:
 
 def _load_query_pool() -> list[str]:
     path = _DATA_DIR / "query_pool" / "queries.txt"
-    return [l.strip() for l in path.read_text().splitlines() if l.strip() and not l.startswith("#")]
+    return [line.strip() for line in path.read_text().splitlines()
+            if line.strip() and not line.startswith("#")]
 
 
 def _load_reflex_params() -> dict[str, ReflexConfig]:
@@ -102,13 +103,14 @@ class Episode:
     query: str
     confidence: float       # Cosine similarity score c (Eq. 13)
     drift_detected: bool    # True when c < τ_drift or stochastic perturbation
-    reflex_mode: Optional[str]  # None when no drift occurred
+    reflex_mode: str | None  # None when no drift occurred
     t_detect: float         # Drift detection latency (Eq. 5)
     t_decide: float         # Policy-selection delay (Eq. 5, negligible)
     t_execute: float        # Reflex execution time (Eq. 5, dominant)
     delta_t: float          # Total Δt = t_detect + t_decide + t_execute (Eq. 1)
     t_fault: float          # Wall-clock onset of fault t_f (Eq. 1)
     t_recovered: float      # Wall-clock restoration t_r (Eq. 1)
+    step_confidences: tuple[float, ...] = ()   # groundedness score at each reasoning step
 
 
 class RecoveryResult(NamedTuple):
@@ -371,7 +373,7 @@ class Pipeline:
         if drift:
             result = recovery_node(self._rng)
             delta_t = result.t_detect + result.t_decide + result.t_execute
-            mode: Optional[str] = result.mode
+            mode: str | None = result.mode
             t_det, t_dec, t_exe = result.t_detect, result.t_decide, result.t_execute
         else:
             mode, t_det, t_dec, t_exe, delta_t = None, 0.0, 0.0, 0.0, 0.0
@@ -608,7 +610,7 @@ class Reporter:
             f"|  Drift rate: {metrics.drift_rate:.1%}"
         )
 
-        print(f"\n  System-Level Reliability Metrics")
+        print("\n  System-Level Reliability Metrics")
         print(f"  {hr}")
         print(
             f"  MedTTR-A (robust):  {metrics.med_ttr_a_sys:>7.3f} s"
@@ -626,16 +628,18 @@ class Reporter:
             f"  (k_α={metrics.k_alpha:.4f})"
         )
 
-        print(f"\n  Latency Decomposition  Δt = t_detect + t_decide + t_execute  (Eq. 5)")
+        print("\n  Latency Decomposition  Δt = t_detect + t_decide + t_execute  (Eq. 5)")
         print(f"  {hr}")
         d = metrics.latency_decomposition
         total = d.t_detect_mean + d.t_decide_mean + d.t_execute_mean
         if total > 0:
             print(f"  t_detect:   {d.t_detect_mean:.3f} s  ({d.t_detect_mean/total:.0%})")
-            print(f"  t_decide:   {d.t_decide_mean:.3f} s  ({d.t_decide_mean/total:.0%})  ← negligible")
-            print(f"  t_execute:  {d.t_execute_mean:.3f} s  ({d.t_execute_mean/total:.0%})  ← dominant")
+            pct_dec = d.t_decide_mean / total
+            pct_exe = d.t_execute_mean / total
+            print(f"  t_decide:   {d.t_decide_mean:.3f} s  ({pct_dec:.0%})  ← negligible")
+            print(f"  t_execute:  {d.t_execute_mean:.3f} s  ({pct_exe:.0%})  ← dominant")
 
-        print(f"\n  Per-Reflex Mode Results  (Table II)")
+        print("\n  Per-Reflex Mode Results  (Table II)")
         print(f"  {hr}")
         print(f"  {'Reflex Mode':<16}  {'Count':>5}  {'Median':>8}  {'Std':>6}  {'P90':>8}")
         print(f"  {'─'*16}  {'─'*5}  {'─'*8}  {'─'*6}  {'─'*8}")
@@ -655,7 +659,7 @@ class Reporter:
                 f"Std: {roll_std:.3f}s  ← stable"
             )
 
-        print(f"\n  Paper vs. Simulation Comparison")
+        print("\n  Paper vs. Simulation Comparison")
         print(f"  {hr}")
         print(f"  {'Metric':<20} {'Paper':>10} {'Simulated':>12}")
         print(f"  {'─'*20}  {'─'*10}  {'─'*12}")

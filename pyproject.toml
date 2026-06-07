@@ -77,6 +77,21 @@ markers = [
     "azure: requires Azure OpenAI credentials",
     "vertex: requires GCP Vertex AI credentials",
 ]
+addopts = "--tb=short"
+
+[tool.coverage.run]
+source = ["mttr_a", "mttr_a_simulation"]
+omit = ["*/test_*", "*/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise ImportError",
+    "raise NotImplementedError",
+]
 
 [tool.ruff]
 line-length = 100

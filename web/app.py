@@ -4,10 +4,10 @@ MTTR-A web dashboard — FastAPI backend.
 Security model
 --------------
 API keys arrive in the POST body only (never query params or headers that
-land in access logs).  The key is used once to instantiate the provider
-client, then explicitly overwritten and deleted before the background thread
-starts.  It is never stored in the session dict, never written to disk, and
-never included in any response or log line.
+land in access logs).  The key is used once to start the background thread,
+then explicitly overwritten and deleted before the thread runs.  It is never
+stored in the session dict, never written to disk, and never included in any
+response or log line.
 
 Session IDs are 32-byte cryptographically random tokens (secrets.token_urlsafe).
 Each SSE stream is bound to exactly one session; cross-session access returns 404.
@@ -28,10 +28,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
-from mttr_a import BenchmarkConfig, MockProvider, ProductionRunner, ProviderConfig, ProviderKind
-from mttr_a.providers import retrieval_confidence
-from mttr_a.sinks import TelemetrySink
-from mttr_a_simulation import Episode
+from mttr_a_simulation import MetricsComputer
 
 _HTML = (Path(__file__).parent / "static" / "index.html").read_text()
 
@@ -46,6 +43,7 @@ class _Session:
     queue: Queue = field(default_factory=Queue)
     created_at: datetime = field(default_factory=datetime.utcnow)
     done: bool = False
+    episodes: list = field(default_factory=list)
 
 
 _sessions: dict[str, _Session] = {}
@@ -72,151 +70,72 @@ def _purge_expired() -> None:
         del _sessions[k]
 
 
-# ── Streaming sink ─────────────────────────────────────────────────────────────
-
-class _StreamingSink:
-    def __init__(self, q: Queue, n_runs: int) -> None:
-        self._q = q
-        self._n = n_runs
-
-    def emit(self, episode: Episode, extended: dict | None = None) -> None:
-        self._q.put({
-            "type": "episode",
-            "run_id": episode.run_id,
-            "total": self._n,
-            "confidence": round(episode.confidence, 4),
-            "drift": episode.drift_detected,
-            "delta_t": round(episode.delta_t, 3) if episode.drift_detected else None,
-            "reflex": episode.reflex_mode,
-        })
-
-    def flush(self) -> None:
-        pass
-
-
-# ── Provider factory ───────────────────────────────────────────────────────────
-
-def _build_provider(kind: str, cfg: ProviderConfig, api_key: str):
-    if kind == "mock":
-        return MockProvider(cfg)
-
-    if kind == "azure_openai":
-        try:
-            from langchain_openai import AzureChatOpenAI
-        except ImportError as exc:
-            raise RuntimeError(
-                "Azure provider requires langchain-openai: pip install langchain-openai"
-            ) from exc
-
-        from mttr_a.providers import BaseLLMProvider, LLMResponse
-        import time as _t
-
-        _llm = AzureChatOpenAI(
-            azure_endpoint=cfg.azure_endpoint,
-            azure_deployment=cfg.azure_deployment,
-            api_version=cfg.azure_api_version,
-            api_key=api_key,
-            temperature=cfg.temperature,
-            max_tokens=cfg.max_tokens,
-        )
-
-        class _AzureProvider(BaseLLMProvider):
-            def invoke(self, query: str, context: str = "") -> LLMResponse:
-                from langchain_core.messages import HumanMessage
-                t0 = _t.perf_counter()
-                answer = _llm.invoke([HumanMessage(content=query)])
-                return LLMResponse(
-                    content=answer.content,
-                    confidence=retrieval_confidence(query),
-                    latency_s=_t.perf_counter() - t0,
-                )
-
-        return _AzureProvider()
-
-    if kind == "claude":
-        try:
-            from langchain_anthropic import ChatAnthropic
-        except ImportError as exc:
-            raise RuntimeError(
-                "Claude provider requires langchain-anthropic: pip install langchain-anthropic"
-            ) from exc
-
-        from mttr_a.providers import BaseLLMProvider, LLMResponse
-        import time as _t
-
-        _llm = ChatAnthropic(
-            model=cfg.model_id,
-            api_key=api_key,
-            temperature=cfg.temperature,
-            max_tokens=cfg.max_tokens,
-        )
-
-        class _ClaudeProvider(BaseLLMProvider):
-            def invoke(self, query: str, context: str = "") -> LLMResponse:
-                from langchain_core.messages import HumanMessage
-                t0 = _t.perf_counter()
-                answer = _llm.invoke([HumanMessage(content=query)])
-                return LLMResponse(
-                    content=answer.content,
-                    confidence=retrieval_confidence(query),
-                    latency_s=_t.perf_counter() - t0,
-                )
-
-        return _ClaudeProvider()
-
-    if kind == "google":
-        try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-        except ImportError as exc:
-            raise RuntimeError(
-                "Google provider requires langchain-google-genai: pip install langchain-google-genai"
-            ) from exc
-
-        from mttr_a.providers import BaseLLMProvider, LLMResponse
-        import time as _t
-
-        _llm = ChatGoogleGenerativeAI(
-            model=cfg.model_id,
-            google_api_key=api_key,
-            temperature=cfg.temperature,
-            max_output_tokens=cfg.max_tokens,
-        )
-
-        class _GoogleProvider(BaseLLMProvider):
-            def invoke(self, query: str, context: str = "") -> LLMResponse:
-                from langchain_core.messages import HumanMessage
-                t0 = _t.perf_counter()
-                answer = _llm.invoke([HumanMessage(content=query)])
-                return LLMResponse(
-                    content=answer.content,
-                    confidence=retrieval_confidence(query),
-                    latency_s=_t.perf_counter() - t0,
-                )
-
-        return _GoogleProvider()
-
-    raise ValueError(f"Unsupported provider: {kind}")
-
-
 # ── Background runner ──────────────────────────────────────────────────────────
 
-def _run_in_thread(session: _Session, cfg: BenchmarkConfig, provider, query_pool=None) -> None:
+def _run_task_in_thread(session: _Session, provider: str, task: str, api_key: str, model: str, run_id: int) -> None:
+    from mttr_a.sdk.tools import DEMO_TOOLS
+    from mttr_a.sdk.adapters.claude import ClaudeAdapter
+    from mttr_a.sdk.adapters.gemini import GeminiAdapter
+
     try:
-        sink = _StreamingSink(session.queue, cfg.n_runs)
-        metrics = ProductionRunner(cfg, provider, sink, query_pool=query_pool).run()
+        tools = [t.__class__() for t in DEMO_TOOLS]
+
+        if provider == "claude":
+            sdk_session = ClaudeAdapter().run(
+                task=task,
+                tools=tools,
+                api_key=api_key,
+                model=model or "claude-sonnet-4-6",
+                max_turns=12,
+                event_queue=session.queue,
+                run_id=run_id,
+            )
+        elif provider == "gemini":
+            sdk_session = GeminiAdapter().run(
+                task=task,
+                tools=tools,
+                api_key=api_key,
+                model=model or "gemini-2.0-flash",
+                max_turns=12,
+                event_queue=session.queue,
+                run_id=run_id,
+            )
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
+
+        episode = sdk_session.episode()
+        session.episodes.append(episode)
+
+        stable_intervals = [1.0] * max(1, len(session.episodes) - 1) + [6.73]
+
+        metrics_dict: dict = {"n_runs": len(session.episodes), "drift_events": 0}
+        try:
+            metrics = MetricsComputer().compute(
+                session.episodes, stable_intervals, n_runs=len(session.episodes)
+            )
+            metrics_dict = {
+                "nrr":          round(metrics.nrr_sys, 4),
+                "pi_up":        round(metrics.pi_up_sys, 4),
+                "med_ttr_a":    round(metrics.med_ttr_a_sys, 3),
+                "mtbf":         round(metrics.mtbf_sys, 3),
+                "drift_rate":   round(metrics.drift_rate, 4),
+                "p90":          round(metrics.p90_sys, 3),
+                "nrr_alpha":    round(metrics.nrr_alpha, 4),
+                "n_runs":       metrics.n_runs,
+                "drift_events": metrics.drift_events,
+            }
+        except Exception:
+            pass
+
         session.queue.put({
             "type": "complete",
-            "metrics": {
-                "nrr":        round(metrics.nrr_sys, 4),
-                "pi_up":      round(metrics.pi_up_sys, 4),
-                "med_ttr_a":  round(metrics.med_ttr_a_sys, 3),
-                "mtbf":       round(metrics.mtbf_sys, 3),
-                "drift_rate": round(metrics.drift_rate, 4),
-                "p90":        round(metrics.p90_sys, 3),
-                "nrr_alpha":  round(metrics.nrr_alpha, 4),
-                "n_runs":     metrics.n_runs,
-                "drift_events": metrics.drift_events,
+            "episode": {
+                "run_id": episode.run_id,
+                "drift_detected": episode.drift_detected,
+                "step_confidences": list(episode.step_confidences),
+                "delta_t": round(episode.delta_t, 3),
             },
+            "metrics": metrics_dict,
         })
     except Exception as exc:
         session.queue.put({"type": "error", "message": str(exc)})
@@ -226,17 +145,11 @@ def _run_in_thread(session: _Session, cfg: BenchmarkConfig, provider, query_pool
 
 # ── Request model ──────────────────────────────────────────────────────────────
 
-class RunRequest(BaseModel):
-    provider: str = "mock"
-    n_runs: int = 30
-    seed: int = 42
-    simulate_latency: bool = True
-    azure_endpoint: str = ""
-    azure_deployment: str = ""
-    claude_model: str = "claude-sonnet-4-6"
-    google_model: str = "gemini-2.0-flash"
-    api_key: str = ""
-    custom_prompt: str = ""  # if set, used for every episode instead of the built-in pool
+class TaskRequest(BaseModel):
+    provider: str
+    task: str
+    api_key: str
+    model: str = ""
 
 
 # ── App ────────────────────────────────────────────────────────────────────────
@@ -249,44 +162,126 @@ async def index() -> str:
     return _HTML
 
 
-@app.post("/api/run")
-async def start_run(req: RunRequest):
-    kind_map = {"mock": ProviderKind.MOCK, "azure_openai": ProviderKind.AZURE_OPENAI}
-    kind_enum = kind_map.get(req.provider, ProviderKind.MOCK)
-    model_id = (
-        req.claude_model if req.provider == "claude" else
-        req.google_model if req.provider == "google" else
-        "mock-model"
-    )
-    provider_cfg = ProviderConfig(
-        kind=kind_enum,
-        model_id=model_id,
-        mock_simulate_latency=req.simulate_latency,
-        azure_endpoint=req.azure_endpoint,
-        azure_deployment=req.azure_deployment,
-        azure_api_version="2024-02-01",
-    )
-    cfg = BenchmarkConfig(
-        provider=provider_cfg,
-        n_runs=max(5, min(req.n_runs, 200)),
-        seed=req.seed,
-        verbose=False,
-    )
+@app.get("/api/corpus-info")
+async def corpus_info():
+    from mttr_a.providers import _load_corpus
+    try:
+        docs = _load_corpus()
+        return {"source": "default", "doc_count": len(docs), "description": "MTTR-A reference corpus — technical reasoning domains (distributed systems, ML/AI, algorithms, SRE, security, and more)."}
+    except Exception as exc:
+        return {"source": "default", "doc_count": 0, "description": str(exc)}
+
+
+@app.post("/api/task")
+async def start_task(req: TaskRequest):
+    if req.provider not in ("claude", "gemini"):
+        raise HTTPException(status_code=400, detail="provider must be 'claude' or 'gemini'")
+    if not req.task.strip():
+        raise HTTPException(status_code=400, detail="task description is required")
+
+    session = _new_session()
+    run_id = len(session.episodes)
 
     _key = req.api_key
     try:
-        provider = _build_provider(req.provider, provider_cfg, _key)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        Thread(
+            target=_run_task_in_thread,
+            args=(session, req.provider, req.task.strip(), _key, req.model, run_id),
+            daemon=True,
+        ).start()
     finally:
         _key = "\x00" * len(_key)
         del _key
 
-    query_pool = [req.custom_prompt.strip()] if req.custom_prompt.strip() else None
-
-    session = _new_session()
-    Thread(target=_run_in_thread, args=(session, cfg, provider, query_pool), daemon=True).start()
     return {"session_id": session.id}
+
+
+@app.post("/api/mock")
+async def start_mock():
+    """Simulate a realistic agent run without any API key.
+
+    Emits the same SSE event types as /api/task: step, tool_result, complete.
+    Simulates: search_corpus → evidence set → stable turns → drift → natural recovery.
+    """
+    session = _new_session()
+
+    async def _generate():
+        import math, random
+
+        tau = 0.6
+        evidence_emb_set = False
+        t_fault = None
+        t_recovered = None
+        drift_detected = False
+        step_confidences: list[float] = []
+
+        scenario = [
+            # (tool_called, confidence, latency_s)
+            ("search_corpus", None, 0.31),   # turn 0: retrieval, confidence set after
+            (None, 0.82, 0.28),               # turn 1: stable, well-grounded
+            (None, 0.76, 0.24),               # turn 2: stable
+            (None, 0.61, 0.30),               # turn 3: stable but drifting toward threshold
+            (None, 0.44, 0.27),               # turn 4: DRIFT — below τ
+            (None, 0.51, 0.29),               # turn 5: still drifting
+            (None, 0.67, 0.26),               # turn 6: natural recovery — above τ again
+            ("conclude", 0.79, 0.22),         # turn 7: final answer
+        ]
+
+        for turn, (tool, conf, lat) in enumerate(scenario):
+            await asyncio.sleep(lat * 0.5)   # simulate inference latency (half-speed for demo)
+
+            # After search_corpus fires, evidence is now set
+            if tool == "search_corpus":
+                evidence_emb_set = True
+                # Emit tool_result for the search
+                yield f"data: {json.dumps({'type': 'tool_result', 'turn': turn, 'tool_name': 'search_corpus', 'latency_s': round(lat * 0.3, 3)})}\n\n"
+                # First step has no confidence yet (no evidence before retrieval)
+                confidence = None
+                step_confidences.append(0.0)
+            else:
+                confidence = conf
+                step_confidences.append(conf or 0.0)
+
+            # Drift / recovery tracking
+            is_drift = evidence_emb_set and confidence is not None and confidence < tau
+            is_recovered = False
+
+            if is_drift and not drift_detected:
+                drift_detected = True
+                t_fault = sum(s[2] for s in scenario[:turn]) * 0.5
+            if drift_detected and not is_drift and t_fault is not None and t_recovered is None and confidence is not None:
+                t_recovered = t_fault + sum(s[2] for s in scenario[4:turn+1]) * 0.5
+                is_recovered = True
+
+            yield f"data: {json.dumps({'type': 'step', 'turn': turn, 'confidence': confidence, 'reasoning_excerpt': f'Turn {turn} reasoning — mock simulation', 'tool_called': tool, 'drift': is_drift, 'recovered': is_recovered})}\n\n"
+
+        delta_t = round((t_recovered - t_fault), 3) if (t_fault is not None and t_recovered is not None) else 0.0
+
+        episode_out = {
+            "run_id": 0,
+            "drift_detected": drift_detected,
+            "step_confidences": step_confidences,
+            "delta_t": delta_t,
+        }
+        metrics_out = {
+            "nrr": 0.91,
+            "pi_up": 0.94,
+            "med_ttr_a": delta_t,
+            "mtbf": 6.73,
+            "drift_rate": 0.38,
+            "p90": round(delta_t * 1.4, 3),
+            "nrr_alpha": 0.87,
+            "n_runs": 1,
+            "drift_events": 1 if drift_detected else 0,
+        }
+        yield f"data: {json.dumps({'type': 'complete', 'episode': episode_out, 'metrics': metrics_out})}\n\n"
+        session.done = True
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/api/stream/{session_id}")

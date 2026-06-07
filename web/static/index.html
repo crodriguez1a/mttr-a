@@ -42,14 +42,12 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Layout ── */
     .shell {
       display: grid;
       grid-template-rows: 52px 1fr;
       min-height: 100vh;
     }
 
-    /* ── Header ── */
     header {
       display: flex;
       align-items: center;
@@ -89,7 +87,6 @@
       0%, 100% { opacity: 1; } 50% { opacity: 0.35; }
     }
 
-    /* ── Progress bar ── */
     .progress-track {
       position: fixed;
       top: 52px; left: 0; right: 0;
@@ -105,7 +102,6 @@
       box-shadow: 0 0 8px var(--blue);
     }
 
-    /* ── Main content ── */
     main {
       display: grid;
       grid-template-columns: 280px 1fr;
@@ -113,7 +109,6 @@
       overflow: hidden;
     }
 
-    /* ── Sidebar ── */
     aside {
       border-right: 1px solid var(--border);
       padding: 24px 20px;
@@ -133,7 +128,6 @@
       margin-bottom: 10px;
     }
 
-    /* provider pills */
     .provider-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -159,7 +153,6 @@
       color: var(--blue);
     }
 
-    /* form fields */
     .field { display: flex; flex-direction: column; gap: 5px; }
     .field label {
       font-size: 12px;
@@ -183,9 +176,7 @@
     .field select option { background: var(--surface-2); }
 
     .field input[type="text"],
-    .field input[type="password"],
-    .field input[type="url"],
-    .field input[type="number"] {
+    .field input[type="password"] {
       background: var(--surface-2);
       border: 1px solid var(--border-2);
       border-radius: var(--radius);
@@ -199,62 +190,9 @@
     .field input:focus { border-color: var(--blue); }
     .field input::placeholder { color: var(--muted); }
 
-    /* key input with reveal toggle */
     .key-wrap { position: relative; }
     .key-wrap input { width: 100%; padding-right: 36px; }
-    .key-reveal {
-      position: absolute;
-      right: 10px; top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 0;
-      font-size: 14px;
-      line-height: 1;
-    }
-    .key-reveal:hover { color: var(--text-2); }
 
-    /* slider */
-    .slider-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .slider-row input[type="range"] {
-      flex: 1;
-      -webkit-appearance: none;
-      height: 3px;
-      background: var(--border-2);
-      border-radius: 2px;
-      outline: none;
-    }
-    .slider-row input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 14px; height: 14px;
-      border-radius: 50%;
-      background: var(--blue);
-      cursor: pointer;
-      box-shadow: 0 0 4px var(--blue);
-    }
-    .slider-val {
-      font-family: var(--mono);
-      font-size: 13px;
-      color: var(--blue);
-      min-width: 28px;
-      text-align: right;
-    }
-
-    /* azure fields */
-    #azure-fields {
-      display: none;
-      flex-direction: column;
-      gap: 12px;
-    }
-    #azure-fields.visible { display: flex; }
-
-    /* prompt textarea */
     #custom-prompt {
       width: 100%;
       background: var(--surface-2);
@@ -266,7 +204,7 @@
       padding: 8px 10px;
       outline: none;
       resize: vertical;
-      min-height: 68px;
+      min-height: 80px;
       line-height: 1.5;
       transition: border-color 0.15s;
     }
@@ -287,12 +225,6 @@
     }
     .chip:hover { border-color: var(--blue); color: var(--blue); }
 
-    .field-hint {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 5px;
-    }
-
     .run-desc {
       text-align: center;
       font-size: 11px;
@@ -301,7 +233,6 @@
     }
     .run-desc.live { color: var(--amber); }
 
-    /* run button */
     .run-btn {
       width: 100%;
       padding: 11px;
@@ -331,14 +262,6 @@
     }
     .error-msg.visible { display: block; }
 
-    /* divider */
-    .divider {
-      height: 1px;
-      background: var(--border);
-      margin: 0 -20px;
-    }
-
-    /* ── Content panel ── */
     .content {
       display: flex;
       flex-direction: column;
@@ -354,7 +277,6 @@
       gap: 12px;
       margin-bottom: 20px;
     }
-
     .kpi {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -397,12 +319,8 @@
     .kpi.green .kpi-val { color: var(--green); }
     .kpi.amber .kpi-val { color: var(--amber); }
     .kpi.red   .kpi-val { color: var(--red); }
-    .kpi-sub {
-      font-size: 11px;
-      color: var(--muted);
-    }
+    .kpi-sub { font-size: 11px; color: var(--muted); }
 
-    /* tooltip on ⓘ — rendered via JS into document.body to escape stacking contexts */
     .tip {
       font-size: 10px;
       color: var(--muted);
@@ -424,7 +342,7 @@
       text-transform: none;
       padding: 9px 12px;
       border-radius: 6px;
-      width: 220px;
+      width: 240px;
       line-height: 1.5;
       z-index: 9999;
       white-space: normal;
@@ -432,7 +350,6 @@
       box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
 
-    /* Chart panel */
     .chart-panel {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -458,7 +375,8 @@
     }
     .chart-legend {
       display: flex;
-      gap: 16px;
+      gap: 14px;
+      flex-wrap: wrap;
     }
     .legend-item {
       display: flex;
@@ -477,7 +395,6 @@
       min-height: 240px;
     }
 
-    /* idle placeholder */
     .chart-placeholder {
       position: absolute;
       inset: 0;
@@ -492,15 +409,39 @@
     .chart-placeholder svg { opacity: 0.25; }
     .chart-placeholder.hidden { display: none; }
 
-    /* Responsive */
     @media (max-width: 900px) {
       main { grid-template-columns: 1fr; }
       aside { border-right: none; border-bottom: 1px solid var(--border); }
       .kpi-row { grid-template-columns: repeat(2, 1fr); }
     }
-    @media (max-width: 520px) {
-      .kpi-row { grid-template-columns: 1fr 1fr; }
+
+    /* Step log */
+    .step-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 12px; }
+    .step-table th {
+      color: var(--muted); font-weight: 600; text-align: left;
+      padding: 5px 8px; border-bottom: 1px solid var(--border);
+      letter-spacing: 0.05em; text-transform: uppercase; font-size: 10px;
     }
+    .step-table td {
+      padding: 5px 8px; border-bottom: 1px solid rgba(28,45,71,0.5);
+      color: var(--text-2); vertical-align: top;
+    }
+    .step-table td:first-child { font-family: var(--mono); color: var(--muted); }
+    .step-table td.excerpt { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .step-table td.conf { font-family: var(--mono); }
+    .low-conf  { color: var(--amber) !important; }
+    .very-low-conf { color: var(--red) !important; }
+
+    /* event badges */
+    .badge {
+      border-radius: 4px; padding: 1px 6px;
+      font-size: 10px; font-weight: 600; font-family: var(--mono);
+      border: 1px solid;
+    }
+    .badge-fault     { background: var(--red-dim);   border-color: var(--red);   color: var(--red);   }
+    .badge-recovered { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+    .fault-row td { background: rgba(240,82,82,0.04); }
   </style>
 </head>
 <body>
@@ -518,47 +459,32 @@
     <div class="progress-fill" id="progress-fill"></div>
   </div>
 
-  <main>
-    <!-- ── Sidebar ── -->
+  <div id="task-panel" style="display:grid; grid-template-columns:280px 1fr; overflow:hidden; height:100%;">
+    <!-- Sidebar -->
     <aside>
       <div>
-        <div class="section-label">Provider</div>
+        <div class="section-label">Task Description <span class="tip" data-tip="A multi-step reasoning task for the agent. The agent will call tools to search for evidence and perform calculations across multiple turns. Groundedness is scored after each turn against the top retrieved document.">ⓘ</span></div>
+        <textarea id="task-input" id="custom-prompt" placeholder="Analyze the trade-offs between distributed rate limiting approaches and recommend one for a high-traffic API..."></textarea>
+        <div class="chip-row">
+          <button class="chip" onclick="setTask('ratelimit')">Rate Limiting</button>
+          <button class="chip" onclick="setTask('slo')">SLO / MTBF</button>
+          <button class="chip" onclick="setTask('rag')">RAG Design</button>
+          <button class="chip" onclick="setTask('chaos')">Chaos Eng</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Provider <span class="tip" data-tip="Claude uses Anthropic's tool use API. Gemini uses Google's function calling API. Both drive a real multi-turn agent loop — no simulation.">ⓘ</span></div>
         <div class="provider-row">
-          <button class="pill active" data-provider="mock" onclick="selectProvider(this)">Mock</button>
-          <button class="pill" data-provider="google" onclick="selectProvider(this)">Google</button>
-          <button class="pill" data-provider="claude" onclick="selectProvider(this)">Claude</button>
-          <button class="pill" data-provider="azure_openai" onclick="selectProvider(this)">Azure OpenAI</button>
+          <button class="pill active" data-task-provider="claude" onclick="selectTaskProvider(this)">Claude</button>
+          <button class="pill" data-task-provider="gemini" onclick="selectTaskProvider(this)">Gemini</button>
         </div>
       </div>
 
-      <div id="google-fields" style="display:none;flex-direction:column;gap:12px;">
+      <div id="task-claude-fields" style="display:flex;flex-direction:column;gap:12px;">
         <div class="field">
           <label>Model</label>
-          <select id="google-model">
-            <option value="gemini-2.0-flash">gemini-2.0-flash (free tier)</option>
-            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (faster)</option>
-            <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>API Key <span style="color:var(--muted);font-weight:400;">— aistudio.google.com</span></label>
-          <div class="key-wrap">
-            <input type="password" id="google-api-key" placeholder="AIza…" autocomplete="off">
-            <button class="key-reveal" onclick="toggleGoogleKey()" title="Show / hide key">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="divider"></div>
-      </div>
-
-      <div id="claude-fields" style="display:none;flex-direction:column;gap:12px;">
-        <div class="field">
-          <label>Model</label>
-          <select id="claude-model">
+          <select id="task-claude-model">
             <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
             <option value="claude-haiku-4-5-20251001">claude-haiku-4-5</option>
             <option value="claude-opus-4-7">claude-opus-4-7</option>
@@ -567,251 +493,242 @@
         <div class="field">
           <label>API Key</label>
           <div class="key-wrap">
-            <input type="password" id="claude-api-key" placeholder="sk-ant-…" autocomplete="off">
-            <button class="key-reveal" onclick="toggleClaudeKey()" title="Show / hide key">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
+            <input type="password" id="task-claude-key" placeholder="sk-ant-…" autocomplete="off">
           </div>
         </div>
-        <div class="divider"></div>
       </div>
 
-      <div id="azure-fields">
+      <div id="task-gemini-fields" style="display:none;flex-direction:column;gap:12px;">
         <div class="field">
-          <label>Endpoint</label>
-          <input type="url" id="azure-endpoint" placeholder="https://…openai.azure.com">
-        </div>
-        <div class="field">
-          <label>Deployment</label>
-          <input type="text" id="azure-deployment" placeholder="gpt-4o">
+          <label>Model</label>
+          <select id="task-gemini-model">
+            <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+          </select>
         </div>
         <div class="field">
           <label>API Key</label>
           <div class="key-wrap">
-            <input type="password" id="api-key" placeholder="sk-…" autocomplete="off">
-            <button class="key-reveal" onclick="toggleKey()" id="key-reveal-btn" title="Show / hide key">
-              <svg id="eye-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
+            <input type="password" id="task-gemini-key" placeholder="AIza…" autocomplete="off">
           </div>
         </div>
-        <div class="divider"></div>
       </div>
 
-      <div>
-        <div class="section-label">Prompt <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">— optional</span></div>
-        <textarea id="custom-prompt" rows="3" placeholder="Leave empty to use the built-in query pool&#10;&#10;Tip: complex prompts produce more signal" oninput="updatePromptHint()"></textarea>
-        <div class="chip-row">
-          <button class="chip" onclick="setPrompt('minimal')">Minimal</button>
-          <button class="chip" onclick="setPrompt('moderate')">Moderate</button>
-          <button class="chip" onclick="setPrompt('complex')">Complex</button>
-          <button class="chip" onclick="setPrompt('multistep')">Multi-step</button>
-        </div>
-        <div class="field-hint" id="prompt-hint">Uses built-in 16-query pool</div>
-      </div>
+      <div class="error-msg" id="task-error-msg"></div>
 
-      <div>
-        <div class="section-label">Episodes</div>
-        <div class="slider-row">
-          <input type="range" id="n-runs" min="10" max="200" step="10" value="30"
-                 oninput="document.getElementById('n-runs-val').textContent = this.value">
-          <span class="slider-val" id="n-runs-val">30</span>
-        </div>
-      </div>
-
-      <div>
-        <div class="section-label">Seed</div>
-        <div class="field">
-          <input type="number" id="seed" value="42" min="0" max="99999">
-        </div>
-      </div>
-
-      <div class="error-msg" id="error-msg"></div>
-
-      <div style="margin-top:auto; padding-top:8px;">
-        <button class="run-btn" id="run-btn" onclick="startRun()">Run Benchmark</button>
-        <div class="run-desc" id="run-desc">Local simulation · no API calls</div>
+      <div style="margin-top:auto;padding-top:8px;">
+        <button class="run-btn" id="task-btn" onclick="startTask()">Run Agent Task</button>
+        <div class="run-desc live">Live API calls · multi-turn tool use · tokens billed</div>
+        <button class="run-btn" id="mock-btn" onclick="startMock()" style="margin-top:10px;background:var(--surface-2);border:1px solid var(--border-2);color:var(--text-2);">Run Mock Demo</button>
+        <div class="run-desc" style="color:var(--muted);">No API key · simulated drift &amp; natural recovery</div>
       </div>
     </aside>
 
-    <!-- ── Content ── -->
+    <!-- Main content -->
     <div class="content">
+
+      <!-- Description banner -->
+      <div style="background:var(--surface-2);border:1px solid var(--border-2);border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;line-height:1.7;">
+        <div style="font-size:12px;font-wseight:600;color:var(--text);margin-bottom:6px;">MTTR-A for real agents</div>
+        <div style="font-size:12px;color:var(--text-2);">
+          Agent reasoning can degrade silently while the system keeps running. MTTR-A brings classical reliability measurement to this failure mode: how long does it take an agent to return to coherent operation after drift is detected?<br><br>
+          Run a task and watch it live. Each inference call is scored for groundedness against what the agent retrieved. When the score drops, a <strong style="color:var(--red)">fault</strong> is logged and the clock starts. When the agent recovers on its own, the clock stops. That elapsed time is <strong>δt</strong> — the same quantity as MTTR in your existing reliability stack, applied to reasoning quality instead of uptime.
+        </div>
+      </div>
+
+      <!-- KPI row -->
       <div class="kpi-row">
         <div class="kpi blue">
-          <div class="kpi-label">NRR <span class="tip" data-tip="Normal Recovery Ratio — the fraction of time the agent spends in a healthy state rather than recovering. 1.0 = always healthy. Values above 0.7 are generally good.">ⓘ</span></div>
-          <div class="kpi-val" id="kpi-nrr">—</div>
-          <div class="kpi-sub">Healthy time ÷ total time</div>
+          <div class="kpi-label">NRR <span class="tip" data-tip="Normalized Recovery Ratio: 1 − MedTTR-A / MTBF. Near 1 = the agent recovers fast relative to how often it drifts. Near 0 = it spends most of its time recovering. Defined in the MTTR-A paper as a dimensionless reliability indicator.">ⓘ</span></div>
+          <div class="kpi-val" id="task-kpi-nrr">—</div>
+          <div class="kpi-sub">Accumulated across tasks</div>
         </div>
         <div class="kpi amber">
-          <div class="kpi-label">MedTTR-A <span class="tip" data-tip="Median Time To Recovery (Agentic) — how long a typical recovery takes in seconds. Half of all recoveries are faster than this, half are slower. Lower is better.">ⓘ</span></div>
-          <div class="kpi-val" id="kpi-med">—</div>
-          <div class="kpi-sub">Typical recovery time (s)</div>
+          <div class="kpi-label">MedTTR-A <span class="tip" data-tip="Median δt across episodes — wall-clock time from fault detection to recovery, spanning real inference calls. Median is used because outliers (slow API calls) skew the mean.">ⓘ</span></div>
+          <div class="kpi-val" id="task-kpi-med">—</div>
+          <div class="kpi-sub">Median δt (s)</div>
         </div>
         <div class="kpi green">
-          <div class="kpi-label">MTBF <span class="tip" data-tip="Mean Time Between Failures — how long the agent runs stably before drifting again, in seconds. A low MTBF relative to MedTTR-A means the agent spends more time recovering than running.">ⓘ</span></div>
-          <div class="kpi-val" id="kpi-mtbf">—</div>
+          <div class="kpi-label">MTBF <span class="tip" data-tip="Mean Time Between cognitive Faults — average stable operating interval between drift events across all tasks in this session. Longer is better.">ⓘ</span></div>
+          <div class="kpi-val" id="task-kpi-mtbf">—</div>
           <div class="kpi-sub">Avg stable interval (s)</div>
         </div>
         <div class="kpi red">
-          <div class="kpi-label">Drift Rate <span class="tip" data-tip="The share of episodes where the model's confidence fell below the threshold. High values may mean the prompt is complex, the model is uncertain, or the threshold needs calibration.">ⓘ</span></div>
-          <div class="kpi-val" id="kpi-drift">—</div>
-          <div class="kpi-sub">Episodes below threshold</div>
+          <div class="kpi-label">Fault Rate <span class="tip" data-tip="Fraction of tasks where at least one inference call fell below the groundedness threshold τ = 0.6, triggering a cognitive fault and recovery reflex. Called 'drift rate' in some formulations of the paper.">ⓘ</span></div>
+          <div class="kpi-val" id="task-kpi-drift">—</div>
+          <div class="kpi-sub">Tasks with cognitive fault</div>
         </div>
       </div>
 
-      <div class="chart-panel">
+      <!-- Confidence timeline chart -->
+      <div class="chart-panel" style="margin-bottom:16px;">
         <div class="chart-header">
-          <div class="chart-title">Confidence Timeline <span class="tip" data-tip="Cosine similarity between the query embedding and the top-matching document in a reference corpus — exactly the paper's signal. High when the query maps to a known concept, lower when it drifts to unfamiliar territory. The corpus ships with the tool; swap it for a domain-specific one in data/corpus/." style="font-size:11px;">ⓘ</span></div>
+          <div class="chart-title">
+            Groundedness per Inference Call
+            <span class="tip" data-tip="cos(step_output_embedding, grounding_doc_embedding) — how closely each turn's output tracks the retrieved evidence. Scored externally after each inference call without modifying the agent.">ⓘ</span>
+          </div>
           <div class="chart-legend">
-            <div class="legend-item">
-              <div class="legend-dot" style="background:var(--blue)"></div>
-              Confidence
-            </div>
-            <div class="legend-item">
-              <div class="legend-dot" style="background:var(--red)"></div>
-              Drift event
-            </div>
-            <div class="legend-item">
-              <div class="legend-dot" style="background:var(--muted);opacity:.5"></div>
-              τ_drift
-            </div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Groundedness</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Fault</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Recovered</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--muted);opacity:.5"></div>τ = 0.6</div>
           </div>
         </div>
         <div class="chart-wrap">
-          <div class="chart-placeholder" id="chart-placeholder">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-            <span>Run a benchmark to see live data</span>
+          <div class="chart-placeholder" id="task-chart-placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span>Run an agent task to see cognitive fault detection</span>
           </div>
-          <canvas id="chart" style="display:none"></canvas>
+          <canvas id="task-chart" style="display:none"></canvas>
         </div>
       </div>
+
+      <!-- Step log table -->
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div class="chart-title">
+            Inference Call Log
+            <span class="tip" data-tip="One row per agent turn. Groundedness is only scored after the agent's first retrieval — before that it shows —. FAULT = confidence dropped below τ. RECOVERED = confidence returned above τ. No external intervention — recovery is observed, not forced.">ⓘ</span>
+          </div>
+        </div>
+        <table class="step-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Reasoning</th>
+              <th>Tool</th>
+              <th>Groundedness</th>
+              <th>Event</th>
+            </tr>
+          </thead>
+          <tbody id="task-step-table"></tbody>
+        </table>
+      </div>
     </div>
-  </main>
-</div>
+  </div>
 
 <script>
-  // ── State ──────────────────────────────────────────────────────────────────
-  let selectedProvider = 'mock';
-  let chart = null;
-  let confData = [];
-  let driftData = [];
-  let totalRuns = 30;
-  const TAU = 0.6;  // default τ_drift
+  const TAU = 0.6;
 
-  // ── Provider selection ─────────────────────────────────────────────────────
-  const PROVIDER_DESC = {
-    mock:        'Local simulation · no API calls',
-    google:      'Live API calls · 2 per episode · free tier available',
-    claude:      'Live API calls · 2 per episode · tokens billed',
-    azure_openai:'Live API calls · 2 per episode · tokens billed',
-  };
+  function setStatus(state, text) {
+    const dot = document.getElementById('status-dot');
+    dot.className = 'status-dot ' + state;
+    document.getElementById('status-text').textContent = text;
+  }
 
-  const EXAMPLE_PROMPTS = {
-    minimal:  'What is 2 + 2?',
-    moderate: 'Explain the TCP three-way handshake and why it matters for connection reliability.',
-    complex:  'Compare microservices and monolithic architectures. Cover operational complexity, latency, fault isolation, team autonomy, and when each is the wrong choice.',
-    multistep:'Design a distributed rate limiter that works across 50 regional nodes. Cover the data structure, synchronization strategy, failure modes, and how you would test correctness under network partitions.',
-  };
+  // Tooltip engine
+  const _tt = document.getElementById('tooltip');
+  document.addEventListener('mouseover', (e) => {
+    const el = e.target.closest('.tip');
+    if (!el) return;
+    _tt.textContent = el.dataset.tip || '';
+    _tt.style.display = 'block';
+    _positionTooltip(el);
+  });
+  document.addEventListener('mouseout', (e) => {
+    if (!e.target.closest('.tip')) return;
+    _tt.style.display = 'none';
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (_tt.style.display === 'none') return;
+    const el = e.target.closest('.tip');
+    if (el) _positionTooltip(el);
+  });
+  function _positionTooltip(el) {
+    const r = el.getBoundingClientRect();
+    const tw = 240, th = _tt.offsetHeight || 80, margin = 8;
+    let top = r.top - th - margin;
+    let left = r.left + r.width / 2 - tw / 2;
+    if (top < margin) top = r.bottom + margin;
+    left = Math.max(margin, Math.min(left, window.innerWidth - tw - margin));
+    _tt.style.top = top + 'px';
+    _tt.style.left = left + 'px';
+    _tt.style.width = tw + 'px';
+  }
 
-  function selectProvider(el) {
-    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  // Provider selection
+  let taskSelectedProvider = 'claude';
+  function selectTaskProvider(el) {
+    document.querySelectorAll('[data-task-provider]').forEach(p => p.classList.remove('active'));
     el.classList.add('active');
-    selectedProvider = el.dataset.provider;
-    document.getElementById('google-fields').style.display =
-      selectedProvider === 'google' ? 'flex' : 'none';
-    document.getElementById('claude-fields').style.display =
-      selectedProvider === 'claude' ? 'flex' : 'none';
-    document.getElementById('azure-fields').style.display =
-      selectedProvider === 'azure_openai' ? 'flex' : 'none';
-    const desc = document.getElementById('run-desc');
-    desc.textContent = PROVIDER_DESC[selectedProvider] || '';
-    desc.className = 'run-desc' + (selectedProvider !== 'mock' ? ' live' : '');
+    taskSelectedProvider = el.dataset.taskProvider;
+    document.getElementById('task-claude-fields').style.display = taskSelectedProvider === 'claude' ? 'flex' : 'none';
+    document.getElementById('task-gemini-fields').style.display = taskSelectedProvider === 'gemini' ? 'flex' : 'none';
   }
 
-  function setPrompt(tier) {
-    const ta = document.getElementById('custom-prompt');
-    ta.value = EXAMPLE_PROMPTS[tier] || '';
-    updatePromptHint();
+  // Task examples
+  const TASK_EXAMPLES = {
+    ratelimit: 'Analyze the trade-offs between token-bucket and sliding-window rate limiting. Search for supporting evidence, then recommend one approach for a high-traffic API handling 50k req/s.',
+    slo:       'Explain how MTBF and MTTR relate to SLO error budgets. Search for definitions, then calculate: given a 99.9% SLO, how many minutes of downtime are allowed per month, and what MTTR is needed if failures occur twice a day?',
+    rag:       'Compare vector database indexing strategies (HNSW vs IVF) for a RAG pipeline serving 10M documents. Search for technical details and recommend an approach with justification.',
+    chaos:     'Explain chaos engineering principles and how circuit breakers prevent cascading failures. Search for evidence then describe a concrete experiment to validate a circuit breaker implementation.',
+  };
+  function setTask(key) {
+    document.getElementById('task-input').value = TASK_EXAMPLES[key] || '';
   }
 
-  function updatePromptHint() {
-    const val = document.getElementById('custom-prompt').value.trim();
-    document.getElementById('prompt-hint').textContent =
-      val ? 'Custom prompt used for every episode' : 'Uses built-in 16-query pool';
-  }
+  // Chart
+  let taskChart = null;
+  let confData = [], faultData = [], recoveredData = [];
+  let lastTurn = 0;
 
-  // ── Key reveal toggles ─────────────────────────────────────────────────────
-  function toggleKey() {
-    const inp = document.getElementById('api-key');
-    inp.type = inp.type === 'password' ? 'text' : 'password';
-  }
-  function toggleClaudeKey() {
-    const inp = document.getElementById('claude-api-key');
-    inp.type = inp.type === 'password' ? 'text' : 'password';
-  }
-  function toggleGoogleKey() {
-    const inp = document.getElementById('google-api-key');
-    inp.type = inp.type === 'password' ? 'text' : 'password';
-  }
-
-  // ── Chart initialisation ───────────────────────────────────────────────────
-  function initChart(nRuns) {
-    totalRuns = nRuns;
-    const canvas = document.getElementById('chart');
-    document.getElementById('chart-placeholder').classList.add('hidden');
+  function initTaskChart() {
+    const canvas = document.getElementById('task-chart');
+    document.getElementById('task-chart-placeholder').classList.add('hidden');
     canvas.style.display = 'block';
+    if (taskChart) taskChart.destroy();
+    confData = []; faultData = []; recoveredData = [];
+    lastTurn = 0;
 
-    if (chart) { chart.destroy(); }
-
-    confData = [];
-    driftData = [];
-
-    const tauLine = {
-      type: 'line',
-      label: 'τ_drift',
-      data: [],
-      borderColor: 'rgba(61,84,120,0.7)',
-      borderWidth: 1,
-      borderDash: [4, 3],
-      pointRadius: 0,
-      fill: false,
-      order: 3,
-    };
-
-    chart = new Chart(canvas, {
+    taskChart = new Chart(canvas, {
       data: {
         datasets: [
           {
             type: 'line',
-            label: 'Confidence',
+            label: 'Groundedness',
             data: confData,
             borderColor: 'rgba(75,158,255,0.85)',
             backgroundColor: 'rgba(75,158,255,0.07)',
             borderWidth: 1.5,
-            pointRadius: 0,
+            pointRadius: 3,
+            pointHoverRadius: 5,
             fill: true,
-            tension: 0.35,
-            order: 2,
+            tension: 0.3,
+            order: 4,
           },
           {
             type: 'scatter',
-            label: 'Drift',
-            data: driftData,
-            backgroundColor: 'rgba(240,82,82,0.85)',
+            label: 'Fault',
+            data: faultData,
+            backgroundColor: 'rgba(240,82,82,0.9)',
             borderColor: 'rgba(240,82,82,0.4)',
             borderWidth: 1,
-            pointRadius: 4,
-            pointHoverRadius: 6,
+            pointRadius: 7,
+            pointHoverRadius: 9,
             order: 1,
           },
-          tauLine,
+          {
+            type: 'scatter',
+            label: 'Recovered',
+            data: recoveredData,
+            backgroundColor: 'rgba(34,212,122,0.9)',
+            borderColor: 'rgba(34,212,122,0.4)',
+            borderWidth: 1,
+            pointRadius: 7,
+            pointHoverRadius: 9,
+            order: 2,
+          },
+          {
+            type: 'line',
+            label: 'τ',
+            data: [],
+            borderColor: 'rgba(61,84,120,0.7)',
+            borderWidth: 1,
+            borderDash: [4, 3],
+            pointRadius: 0,
+            fill: false,
+            order: 4,
+          },
         ],
       },
       options: {
@@ -828,10 +745,11 @@
             bodyColor: '#D8E6F7',
             padding: 10,
             callbacks: {
-              title: (items) => `Episode ${items[0].label}`,
+              title: (items) => `Turn ${Number(items[0].raw.x ?? items[0].label) + 1}`,
               label: (item) => {
-                if (item.datasetIndex === 1) return `Drift  Δt: ${item.raw.delta_t?.toFixed(3) ?? '—'} s`;
-                return `Confidence: ${Number(item.raw.y ?? item.raw).toFixed(4)}`;
+                if (item.datasetIndex === 1) return 'FAULT — confidence below τ';
+                if (item.datasetIndex === 2) return 'RECOVERED — confidence above τ';
+                return `Groundedness: ${Number(item.raw.y ?? item.raw).toFixed(4)}`;
               },
             },
           },
@@ -839,13 +757,13 @@
         scales: {
           x: {
             type: 'linear',
-            title: { display: true, text: 'Episode', color: '#3D5478', font: { size: 11 } },
+            title: { display: true, text: 'Agent Turn', color: '#3D5478', font: { size: 11 } },
             grid: { color: 'rgba(28,45,71,0.6)' },
-            ticks: { color: '#3D5478', maxTicksLimit: 10, font: { size: 11 } },
+            ticks: { color: '#3D5478', font: { size: 11 } },
           },
           y: {
             min: 0, max: 1.05,
-            title: { display: true, text: 'Confidence', color: '#3D5478', font: { size: 11 } },
+            title: { display: true, text: 'Groundedness', color: '#3D5478', font: { size: 11 } },
             grid: { color: 'rgba(28,45,71,0.6)' },
             ticks: { color: '#3D5478', font: { size: 11 } },
           },
@@ -854,130 +772,111 @@
     });
   }
 
-  function pushEpisode(ev) {
-    confData.push({ x: ev.run_id, y: ev.confidence });
-    if (ev.drift) {
-      driftData.push({ x: ev.run_id, y: ev.confidence, delta_t: ev.delta_t });
-    }
-    // keep tau line in sync with x range
-    const tauDataset = chart.data.datasets[2];
-    const maxX = ev.run_id;
-    tauDataset.data = [{ x: 0, y: TAU }, { x: maxX, y: TAU }];
-    chart.update('none');
+  function updateTauLine(maxX) {
+    const tauDs = taskChart.data.datasets[3];
+    tauDs.data = [{ x: 0, y: TAU }, { x: Math.max(maxX, 1), y: TAU }];
   }
 
-  // ── KPI updates ────────────────────────────────────────────────────────────
-  function setKPI(id, val) {
-    document.getElementById(id).textContent = val;
+  function pushStep(ev) {
+    lastTurn = ev.turn;
+    if (ev.confidence !== null && ev.confidence !== undefined) {
+      confData.push({ x: ev.turn, y: ev.confidence });
+      if (ev.drift)     faultData.push({ x: ev.turn, y: ev.confidence });
+      if (ev.recovered) recoveredData.push({ x: ev.turn, y: ev.confidence });
+      updateTauLine(ev.turn);
+      taskChart.update('none');
+    }
+
+    const tbody = document.getElementById('task-step-table');
+    const row = document.createElement('tr');
+    row.id = `step-row-${ev.turn}`;
+    if (ev.drift && !ev.recovered) row.classList.add('fault-row');
+
+    const conf = ev.confidence;
+    const confStr = conf !== null && conf !== undefined ? conf.toFixed(4) : '—';
+    const confClass = conf !== null && conf < 0.5 ? 'very-low-conf' : conf !== null && conf < TAU ? 'low-conf' : '';
+    let eventCell = '—';
+    if (ev.recovered) eventCell = '<span class="badge badge-recovered">RECOVERED</span>';
+    else if (ev.drift) eventCell = '<span class="badge badge-fault">FAULT</span>';
+
+    row.innerHTML = `
+      <td>${ev.turn + 1}</td>
+      <td class="excerpt" title="${(ev.reasoning_excerpt || '').replace(/"/g, '&quot;')}">${ev.reasoning_excerpt || '—'}</td>
+      <td id="tool-cell-${ev.turn}">${ev.tool_called || '—'}</td>
+      <td class="conf ${confClass}">${confStr}</td>
+      <td>${eventCell}</td>
+    `;
+    tbody.appendChild(row);
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function pushToolResult(ev) {
+    const cell = document.getElementById(`tool-cell-${ev.turn}`);
+    if (cell) {
+      cell.innerHTML = `${ev.tool_name} <span style="color:var(--muted);font-family:var(--mono);font-size:10px;">${ev.latency_s}s</span>`;
+    }
   }
 
   function showMetrics(m) {
-    setKPI('kpi-nrr',   m.nrr.toFixed(3));
-    setKPI('kpi-med',   m.med_ttr_a.toFixed(2) + 's');
-    setKPI('kpi-mtbf',  m.mtbf.toFixed(2) + 's');
-    setKPI('kpi-drift', (m.drift_rate * 100).toFixed(1) + '%');
+    if (!m) return;
+    const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    if (m.nrr       !== undefined) s('task-kpi-nrr',  m.nrr.toFixed(3));
+    if (m.med_ttr_a !== undefined) s('task-kpi-med',  m.med_ttr_a.toFixed(2) + 's');
+    if (m.mtbf      !== undefined) s('task-kpi-mtbf', m.mtbf.toFixed(2) + 's');
+    if (m.drift_rate !== undefined) s('task-kpi-drift', (m.drift_rate * 100).toFixed(1) + '%');
   }
 
-  // ── Status helpers ─────────────────────────────────────────────────────────
-  function setStatus(state, text) {
-    const dot = document.getElementById('status-dot');
-    dot.className = 'status-dot ' + state;
-    document.getElementById('status-text').textContent = text;
-  }
-
-  function setProgress(pct) {
-    document.getElementById('progress-fill').style.width = pct + '%';
-  }
-
-  function showError(msg) {
-    const el = document.getElementById('error-msg');
+  function showTaskError(msg) {
+    const el = document.getElementById('task-error-msg');
     el.textContent = msg;
     el.classList.add('visible');
   }
 
-  function clearError() {
-    const el = document.getElementById('error-msg');
-    el.textContent = '';
-    el.classList.remove('visible');
-  }
+  async function startTask() {
+    const errEl = document.getElementById('task-error-msg');
+    errEl.textContent = ''; errEl.classList.remove('visible');
 
-  // ── Run ────────────────────────────────────────────────────────────────────
-  async function startRun() {
-    clearError();
-    const nRuns = parseInt(document.getElementById('n-runs').value, 10);
-    const seed  = parseInt(document.getElementById('seed').value, 10);
+    const task = document.getElementById('task-input').value.trim();
+    if (!task) { showTaskError('Task description is required.'); return; }
 
-    const body = {
-      provider: selectedProvider,
-      n_runs: nRuns,
-      seed: isNaN(seed) ? 42 : seed,
-      simulate_latency: true,
-      custom_prompt: document.getElementById('custom-prompt').value.trim(),
-    };
+    const apiKey = taskSelectedProvider === 'claude'
+      ? document.getElementById('task-claude-key').value
+      : document.getElementById('task-gemini-key').value;
+    if (!apiKey) { showTaskError('API key is required.'); return; }
 
-    if (selectedProvider === 'google') {
-      body.google_model = document.getElementById('google-model').value;
-      body.api_key      = document.getElementById('google-api-key').value;
-      if (!body.api_key) {
-        showError('API key is required. Get one free at aistudio.google.com.');
-        return;
-      }
-    }
+    const model = taskSelectedProvider === 'claude'
+      ? document.getElementById('task-claude-model').value
+      : document.getElementById('task-gemini-model').value;
 
-    if (selectedProvider === 'claude') {
-      body.claude_model = document.getElementById('claude-model').value;
-      body.api_key      = document.getElementById('claude-api-key').value;
-      if (!body.api_key) {
-        showError('API key is required for Claude.');
-        return;
-      }
-    }
+    initTaskChart();
+    document.getElementById('task-step-table').innerHTML = '';
+    document.getElementById('task-btn').disabled = true;
+    setStatus('running', 'Agent running…');
 
-    if (selectedProvider === 'azure_openai') {
-      body.azure_endpoint   = document.getElementById('azure-endpoint').value.trim();
-      body.azure_deployment = document.getElementById('azure-deployment').value.trim();
-      body.api_key          = document.getElementById('api-key').value;
-
-      if (!body.azure_endpoint || !body.azure_deployment || !body.api_key) {
-        showError('Endpoint, deployment, and API key are all required for Azure OpenAI.');
-        return;
-      }
-    }
-
-    document.getElementById('run-btn').disabled = true;
-    setStatus('running', 'Running');
-    setProgress(2);
-    initChart(nRuns);
+    const body = { provider: taskSelectedProvider, task, api_key: apiKey, model };
 
     let res;
     try {
-      res = await fetch('/api/run', {
+      res = await fetch('/api/task', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-    } catch (err) {
-      showError('Could not reach the server.');
-      reset();
+    } catch {
+      showTaskError('Could not reach the server.');
+      document.getElementById('task-btn').disabled = false;
       return;
     } finally {
-      // Clear key from memory as soon as the request is dispatched
-      if (body.api_key) body.api_key = '';
-      if (selectedProvider === 'azure_openai') {
-        document.getElementById('api-key').value = '';
-      }
-      if (selectedProvider === 'claude') {
-        document.getElementById('claude-api-key').value = '';
-      }
-      if (selectedProvider === 'google') {
-        document.getElementById('google-api-key').value = '';
-      }
+      body.api_key = '';
+      if (taskSelectedProvider === 'claude') document.getElementById('task-claude-key').value = '';
+      else document.getElementById('task-gemini-key').value = '';
     }
 
     if (!res.ok) {
       const detail = await res.json().catch(() => ({}));
-      showError(detail.detail || `Server error ${res.status}`);
-      reset();
+      showTaskError(detail.detail || `Server error ${res.status}`);
+      document.getElementById('task-btn').disabled = false;
+      setStatus('idle', 'Idle');
       return;
     }
 
@@ -986,78 +885,100 @@
 
     es.onmessage = (e) => {
       const ev = JSON.parse(e.data);
-
-      if (ev.type === 'episode') {
-        const pct = Math.round((ev.run_id + 1) / ev.total * 100);
-        setProgress(pct);
-        setStatus('running', `${ev.run_id + 1} / ${ev.total}`);
-        pushEpisode(ev);
-      }
-
+      if (ev.type === 'step')        pushStep(ev);
+      if (ev.type === 'tool_result') pushToolResult(ev);
       if (ev.type === 'complete') {
         showMetrics(ev.metrics);
-        setProgress(100);
-        setStatus('done', `Done — ${ev.metrics.n_runs} episodes`);
+        setStatus('done', 'Task complete');
         es.close();
-        document.getElementById('run-btn').disabled = false;
-        setTimeout(() => setProgress(0), 1200);
+        document.getElementById('task-btn').disabled = false;
       }
-
       if (ev.type === 'error') {
-        showError(ev.message);
+        showTaskError(ev.message);
         es.close();
-        reset();
+        document.getElementById('task-btn').disabled = false;
+        setStatus('idle', 'Idle');
       }
     };
 
     es.onerror = () => {
-      showError('Stream interrupted.');
+      showTaskError('Stream interrupted.');
       es.close();
-      reset();
+      document.getElementById('task-btn').disabled = false;
+      setStatus('idle', 'Idle');
     };
   }
 
-  function reset() {
-    document.getElementById('run-btn').disabled = false;
-    setStatus('idle', 'Idle');
-    setProgress(0);
-  }
+  async function startMock() {
+    const errEl = document.getElementById('task-error-msg');
+    errEl.textContent = ''; errEl.classList.remove('visible');
 
-  // ── Tooltip engine ─────────────────────────────────────────────────────────
-  const _tt = document.getElementById('tooltip');
+    initTaskChart();
+    document.getElementById('task-step-table').innerHTML = '';
+    document.getElementById('task-btn').disabled = true;
+    document.getElementById('mock-btn').disabled = true;
+    setStatus('running', 'Mock simulation running…');
 
-  document.addEventListener('mouseover', (e) => {
-    const el = e.target.closest('.tip');
-    if (!el) return;
-    _tt.textContent = el.dataset.tip || '';
-    _tt.style.display = 'block';
-    _positionTooltip(el);
-  });
+    let res;
+    try {
+      res = await fetch('/api/mock', { method: 'POST' });
+    } catch {
+      showTaskError('Could not reach the server.');
+      document.getElementById('task-btn').disabled = false;
+      document.getElementById('mock-btn').disabled = false;
+      return;
+    }
 
-  document.addEventListener('mouseout', (e) => {
-    if (!e.target.closest('.tip')) return;
-    _tt.style.display = 'none';
-  });
+    if (!res.ok) {
+      showTaskError(`Server error ${res.status}`);
+      document.getElementById('task-btn').disabled = false;
+      document.getElementById('mock-btn').disabled = false;
+      setStatus('idle', 'Idle');
+      return;
+    }
 
-  document.addEventListener('mousemove', (e) => {
-    if (_tt.style.display === 'none') return;
-    const el = e.target.closest('.tip');
-    if (el) _positionTooltip(el);
-  });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
 
-  function _positionTooltip(el) {
-    const r = el.getBoundingClientRect();
-    const tw = 220, th = _tt.offsetHeight || 80;
-    const margin = 8;
-    let top = r.top - th - margin;
-    let left = r.left + r.width / 2 - tw / 2;
-    // flip below if not enough room above
-    if (top < margin) top = r.bottom + margin;
-    // keep within viewport horizontally
-    left = Math.max(margin, Math.min(left, window.innerWidth - tw - margin));
-    _tt.style.top  = top  + 'px';
-    _tt.style.left = left + 'px';
-    _tt.style.width = tw + 'px';
+    const processChunk = (chunk) => {
+      buf += chunk;
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const ev = JSON.parse(line.slice(6));
+          if (ev.type === 'step')        pushStep(ev);
+          if (ev.type === 'tool_result') pushToolResult(ev);
+          if (ev.type === 'complete') {
+            showMetrics(ev.metrics);
+            setStatus('done', 'Mock complete');
+            document.getElementById('task-btn').disabled = false;
+            document.getElementById('mock-btn').disabled = false;
+          }
+          if (ev.type === 'error') {
+            showTaskError(ev.message);
+            setStatus('idle', 'Idle');
+            document.getElementById('task-btn').disabled = false;
+            document.getElementById('mock-btn').disabled = false;
+          }
+        } catch {}
+      }
+    };
+
+    const pump = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        processChunk(decoder.decode(value, { stream: true }));
+      }
+    };
+    pump().catch(() => {
+      document.getElementById('task-btn').disabled = false;
+      document.getElementById('mock-btn').disabled = false;
+      setStatus('idle', 'Idle');
+    });
   }
 </script>
 </body>
