@@ -657,7 +657,9 @@ class TestClaudeAdapterLoop:
     def _run(self, responses, task="test task", tools=None, queue=None):
         mock_client = MagicMock()
         mock_client.messages.create.side_effect = responses
-        with patch("anthropic.Anthropic", return_value=mock_client):
+        mock_anthropic = MagicMock()
+        mock_anthropic.Anthropic.return_value = mock_client
+        with patch.dict("sys.modules", {"anthropic": mock_anthropic}):
             return ClaudeAdapter().run(
                 task=task,
                 tools=tools or DEMO_TOOLS,
@@ -853,7 +855,11 @@ class TestGeminiAdapterLoop:
         mock_client.models.generate_content.side_effect = [
             _make_gemini_response(c) for c in candidates
         ]
-        with patch("google.genai.Client", return_value=mock_client):
+        mock_genai = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        mock_google = MagicMock()
+        mock_google.genai = mock_genai
+        with patch.dict("sys.modules", {"google": mock_google, "google.genai": mock_genai}):
             return GeminiAdapter().run(
                 task=task,
                 tools=tools or DEMO_TOOLS,
