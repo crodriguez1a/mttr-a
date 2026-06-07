@@ -53,3 +53,11 @@ Changing these values does not affect paper replication — they control the sim
 - Raise `base_mu` to simulate a well-calibrated, rarely-drifting model
 - Lower `base_mu` to simulate a poorly-calibrated model that drifts frequently
 - Widen `mock_provider_latency` ranges to simulate slower providers
+
+## Relationship to retrieval confidence
+
+Real providers compute confidence via `retrieval_confidence(query)`: embed the query, find the top-matching document in `data/corpus/documents.txt`, and return `cos(query_emb, top_doc_emb)`.
+
+The `confidence_distribution` parameters here simulate what that retrieval pipeline produces in practice. The Gaussian with `base_mu=0.65` and `base_sigma=0.15` approximates the distribution of cosine similarity scores between typical technical reasoning queries and their best-matching corpus document — centred in the 0.6–0.7 range with a tail that dips below the 0.6 drift threshold on roughly 30–40% of episodes.
+
+`MockProvider` uses this Gaussian directly so the full benchmark pipeline can run without a real corpus, embedding model, or API keys. Swap to a real provider (see `mttr_a/providers.py`) to use actual retrieval-based confidence instead.

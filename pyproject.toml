@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=70", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "mttr-a"
@@ -50,6 +50,13 @@ notebook = [
     "matplotlib>=3.8",
     "pandas>=2.0",
 ]
+web = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+    "langchain-anthropic>=0.3",
+    "langchain-google-genai>=2.0",
+    "sentence-transformers>=3.0",
+]
 
 [project.scripts]
 # After pip install -e . you can run: mttr-a
@@ -59,9 +66,9 @@ mttr-a = "mttr_a.__main__:main"
 where = ["."]
 include = ["mttr_a*"]
 
-[tool.setuptools.py-modules]
+[tool.setuptools]
 # Include the single-file simulation module alongside the package
-mttr_a_simulation = "mttr_a_simulation"
+py-modules = ["mttr_a_simulation"]
 
 [tool.pytest.ini_options]
 markers = [
@@ -69,6 +76,21 @@ markers = [
     "bedrock: requires AWS Bedrock credentials",
     "azure: requires Azure OpenAI credentials",
     "vertex: requires GCP Vertex AI credentials",
+]
+addopts = "--tb=short"
+
+[tool.coverage.run]
+source = ["mttr_a", "mttr_a_simulation"]
+omit = ["*/test_*", "*/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise ImportError",
+    "raise NotImplementedError",
 ]
 
 [tool.ruff]

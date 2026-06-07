@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[notebook,dev]" sentence-transformers
+
+      - name: Run tests with coverage
+        run: |
+          pytest test_mttr_a.py test_production.py test_sdk.py \
+            --cov=mttr_a --cov=mttr_a_simulation \
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            -q
+
+      - name: Lint
+        run: ruff check mttr_a/ mttr_a_simulation.py test_sdk.py

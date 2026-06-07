@@ -38,7 +38,7 @@ from mttr_a import (
     ProductionRunner,
 )
 from mttr_a.graph import AgentState, build_graph, state_to_episode
-from mttr_a.providers import LLMResponse, _parse_confidence
+from mttr_a.providers import LLMResponse
 from mttr_a_simulation import Episode
 
 
@@ -187,22 +187,6 @@ class TestLLMResponse:
             r.confidence = 0.1  # type: ignore[misc]
 
 
-class TestParseConfidence:
-    @pytest.mark.parametrize("text,expected", [
-        ("0.82", 0.82),
-        ("  0.9  ", 0.9),
-        ("82", 0.82),        # percentage format → divide by 100
-        ("no number here", 0.5),
-        ("1.5", 0.015),      # > 1.0 treated as percentage → 1.5 / 100 = 0.015
-        ("-0.3", 0.3),       # regex strips sign, matches "0.3", returns 0.3
-        ("confidence is 0.75 out of 1", 0.75),
-    ])
-    def test_parse(self, text, expected):
-        assert _parse_confidence(text) == pytest.approx(expected, abs=1e-9)
-
-    def test_empty_string(self):
-        assert _parse_confidence("") == 0.5
-
 
 class TestMockProvider:
     def test_returns_llm_response(self):
@@ -290,9 +274,16 @@ def _blank_state(run_id: int = 0, query: str = "what is drift?") -> AgentState:
     return AgentState(
         run_id=run_id,
         query=query,
+        grounding_doc="",
+        grounding_doc_emb=None,
+        step_index=0,
+        max_steps=3,
+        step_outputs=[],
+        step_confidences=[],
         response="",
         confidence=0.0,
         is_drift=False,
+        drift_step=-1,
         reflex_mode=None,
         t_reason_start=0.0,
         t_reason_end=0.0,
@@ -302,6 +293,10 @@ def _blank_state(run_id: int = 0, query: str = "what is drift?") -> AgentState:
         T_detect=0.0,
         T_decide=0.0,
         T_execute=0.0,
+        t_queued=0.0,
+        t_first_token=0.0,
+        tool_latency_s=0.0,
+        n_tool_calls=0,
     )
 
 
@@ -699,26 +694,15 @@ class TestExampleProduction:
 # ── Data loading tests ────────────────────────────────────────────────────────
 
 from mttr_a.providers import (
-    _CONFIDENCE_PROMPT,
     _MOCK_LATENCY,
     _MOCK_CONF,
     _TTFT_FRACTION,
     _load_mock_cfg,
-    _load_confidence_prompt,
 )
 
 
 class TestProviderDataLoading:
     """Verify that MockProvider and real providers load all data from files."""
-
-    def test_confidence_prompt_loaded_from_file(self) -> None:
-        loaded = _load_confidence_prompt()
-        assert isinstance(loaded, str)
-        assert len(loaded) > 20
-        assert "0.0" in loaded and "1.0" in loaded
-
-    def test_confidence_prompt_matches_module_constant(self) -> None:
-        assert _load_confidence_prompt() == _CONFIDENCE_PROMPT
 
     def test_mock_latency_loaded_from_file(self) -> None:
         assert "" in _MOCK_LATENCY

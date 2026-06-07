@@ -7,16 +7,23 @@ Swapping providers is a one-line config change — the graph nodes are provider-
 
 Confidence strategy
 -------------------
-  Mock     — sampled from N(0.65, 0.15), no real call
-  Bedrock  — structured self-eval prompt: model scores its own answer 0-1
-  Azure    — same structured self-eval via AzureChatOpenAI
-  Vertex   — same structured self-eval via ChatVertexAI
+  Mock     — groundedness per step is simulated from N(0.65, 0.15) + N(0.0, 0.05),
+             clamped to [0, 1]. This Gaussian simulates the distribution of
+             retrieval-confidence scores that a real pipeline would produce —
+             no corpus or embedding call is needed for mock runs.
+             Parameters are tunable in data/mock_config/config.json.
 
-Real providers always make two sequential calls per episode:
-  1. answer the query
-  2. rate confidence in that answer
-This keeps the implementation provider-agnostic (no reliance on logprobs,
-which differ across providers and model versions).
+  Real     — per-step groundedness: cos(step_output_emb, grounding_doc_emb).
+             The grounding document is retrieved via get_top_doc() which embeds
+             the query with all-MiniLM-L6-v2, finds the top-matching document
+             in data/corpus/documents.txt, and returns the doc text and its
+             L2-normalised embedding.  After each reasoning step, step_groundedness()
+             computes cos(step_output_emb, grounding_doc_emb) to measure how
+             anchored the model's output is to the retrieved document.
+
+             Corpus embeddings are pre-computed and L2-normalised on first use,
+             so retrieval is a single matrix–vector dot product after warm-up.
+             Requires: pip install sentence-transformers
 """
 
 from __future__ import annotations
@@ -35,11 +42,7 @@ _DATA_DIR = Path(__file__).parent.parent / "data"
 def _load_mock_cfg() -> dict:
     return json.loads((_DATA_DIR / "mock_config" / "config.json").read_text())
 
-def _load_confidence_prompt() -> str:
-    return (_DATA_DIR / "confidence_eval" / "prompt.txt").read_text().strip()
-
 _MOCK_CFG = _load_mock_cfg()
-_CONFIDENCE_PROMPT: str = _load_confidence_prompt()
 _MOCK_CONF = _MOCK_CFG["confidence_distribution"]
 _MOCK_LATENCY: dict[str, tuple[float, float]] = {
     k: (v[0], v[1])
@@ -47,6 +50,109 @@ _MOCK_LATENCY: dict[str, tuple[float, float]] = {
     if not k.startswith("_")
 }
 _TTFT_FRACTION: float = _MOCK_CFG["ttft_fraction"]["value"]
+
+# ── Retrieval-based confidence (paper's exact signal) ─────────────────────────
+
+_embed_model = None  # lazy-loaded, shared across all provider instances
+
+def _get_embed_model():
+    global _embed_model
+    if _embed_model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError as exc:
+            raise ImportError(
+                "Retrieval confidence requires sentence-transformers: "
+                "pip install sentence-transformers"
+            ) from exc
+        _embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _embed_model
+
+
+_corpus_docs: list[str] | None = None
+_corpus_embs = None  # shape (n_docs, dim), L2-normalized
+
+
+def _load_corpus() -> list[str]:
+    path = _DATA_DIR / "corpus" / "documents.txt"
+    return [line.strip() for line in path.read_text().splitlines()
+            if line.strip() and not line.startswith("#")]
+
+
+def _get_corpus_embs():
+    global _corpus_docs, _corpus_embs
+    if _corpus_embs is None:
+        import numpy as np
+        model = _get_embed_model()
+        _corpus_docs = _load_corpus()
+        embs = model.encode(_corpus_docs, convert_to_numpy=True)
+        norms = np.linalg.norm(embs, axis=1, keepdims=True)
+        _corpus_embs = embs / (norms + 1e-9)
+    return _corpus_embs
+
+
+def compute_corpus_embs(docs: list[str]):
+    """
+    Embed and L2-normalise a list of documents.
+    Pass the result to retrieval_confidence() to use a custom corpus
+    instead of the bundled default.
+    """
+    import numpy as np
+    embs = _get_embed_model().encode(docs, convert_to_numpy=True)
+    norms = np.linalg.norm(embs, axis=1, keepdims=True)
+    return embs / (norms + 1e-9)
+
+
+def retrieval_confidence(query: str, corpus_embs=None) -> float:
+    """
+    cos(query_emb, top_doc_emb) — the paper's exact confidence signal.
+
+    corpus_embs: pre-computed L2-normalised embeddings from compute_corpus_embs().
+    If None, uses the bundled default corpus (data/corpus/documents.txt).
+
+    High when the query maps to a well-represented concept; lower when it drifts
+    to unfamiliar territory.  Returns a value in [0, 1].
+    """
+    import numpy as np
+    model = _get_embed_model()
+    q = model.encode([query], convert_to_numpy=True)
+    q = q / (np.linalg.norm(q) + 1e-9)
+    embs = corpus_embs if corpus_embs is not None else _get_corpus_embs()
+    return float(max(0.0, min(1.0, (embs @ q.T).max())))
+
+
+def get_top_doc(query: str, corpus_embs=None, corpus_docs: list[str] | None = None):
+    """
+    Find the top-matching document for a query.
+    Returns (doc_text: str, doc_emb: np.ndarray, similarity: float).
+    doc_emb is L2-normalized (same as corpus_embs rows).
+    """
+    import numpy as np
+    embs = corpus_embs if corpus_embs is not None else _get_corpus_embs()
+    docs = (
+        corpus_docs if corpus_docs is not None
+        else (_corpus_docs if _corpus_docs is not None else _load_corpus())
+    )
+    model = _get_embed_model()
+    q = model.encode([query], convert_to_numpy=True)
+    q = q / (np.linalg.norm(q) + 1e-9)
+    scores = (embs @ q.T).flatten()
+    idx = int(scores.argmax())
+    score = float(max(0.0, min(1.0, float(scores[idx]))))
+    return docs[idx], embs[idx], score
+
+
+def step_groundedness(step_output: str, doc_emb) -> float:
+    """
+    cos(embed(step_output), doc_emb) — measures how grounded a reasoning step
+    is in the retrieved document. This is the paper's signal applied to outputs
+    rather than inputs.
+    """
+    import numpy as np
+    model = _get_embed_model()
+    out = model.encode([step_output], convert_to_numpy=True)[0]
+    out = out / (np.linalg.norm(out) + 1e-9)
+    return float(max(0.0, min(1.0, out @ doc_emb)))
 
 
 @dataclass(frozen=True)
@@ -156,7 +262,7 @@ class BedrockProvider(BaseLLMProvider):
     def __init__(self, config: ProviderConfig) -> None:
         try:
             from langchain_aws import ChatBedrock
-            from langchain_core.messages import HumanMessage, AIMessage
+            from langchain_core.messages import AIMessage, HumanMessage
         except ImportError as exc:
             raise ImportError(
                 "Install langchain-aws: pip install langchain-aws"
@@ -174,21 +280,13 @@ class BedrockProvider(BaseLLMProvider):
         self._AIMessage = AIMessage
 
     def invoke(self, query: str, context: str = "") -> LLMResponse:
-        from langchain_core.messages import HumanMessage, AIMessage
-
+        from langchain_core.messages import HumanMessage
         t0 = time.perf_counter()
         answer = self._llm.invoke([HumanMessage(content=query)])
-
-        conf_msg = self._llm.invoke([
-            HumanMessage(content=query),
-            AIMessage(content=answer.content),
-            HumanMessage(content=_CONFIDENCE_PROMPT),
-        ])
         latency = time.perf_counter() - t0
-
         return LLMResponse(
             content=answer.content,
-            confidence=_parse_confidence(conf_msg.content),
+            confidence=retrieval_confidence(query),
             latency_s=latency,
         )
 
@@ -227,20 +325,13 @@ class AzureOpenAIProvider(BaseLLMProvider):
         )
 
     def invoke(self, query: str, context: str = "") -> LLMResponse:
-        from langchain_core.messages import HumanMessage, AIMessage
-
+        from langchain_core.messages import HumanMessage
         t0 = time.perf_counter()
         answer = self._llm.invoke([HumanMessage(content=query)])
-        conf_msg = self._llm.invoke([
-            HumanMessage(content=query),
-            AIMessage(content=answer.content),
-            HumanMessage(content=_CONFIDENCE_PROMPT),
-        ])
         latency = time.perf_counter() - t0
-
         return LLMResponse(
             content=answer.content,
-            confidence=_parse_confidence(conf_msg.content),
+            confidence=retrieval_confidence(query),
             latency_s=latency,
         )
 
@@ -279,20 +370,13 @@ class VertexAIProvider(BaseLLMProvider):
         )
 
     def invoke(self, query: str, context: str = "") -> LLMResponse:
-        from langchain_core.messages import HumanMessage, AIMessage
-
+        from langchain_core.messages import HumanMessage
         t0 = time.perf_counter()
         answer = self._llm.invoke([HumanMessage(content=query)])
-        conf_msg = self._llm.invoke([
-            HumanMessage(content=query),
-            AIMessage(content=answer.content),
-            HumanMessage(content=_CONFIDENCE_PROMPT),
-        ])
         latency = time.perf_counter() - t0
-
         return LLMResponse(
             content=answer.content,
-            confidence=_parse_confidence(conf_msg.content),
+            confidence=retrieval_confidence(query),
             latency_s=latency,
         )
 
@@ -318,15 +402,3 @@ def build_provider(config: ProviderConfig, seed: int = 42) -> BaseLLMProvider:
     raise ValueError(f"Unknown provider kind: {config.kind}")
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _parse_confidence(text: str) -> float:
-    """Extract a float in [0, 1] from a model's free-text confidence reply."""
-    import re
-    matches = re.findall(r"\d+\.?\d*", text.strip())
-    if not matches:
-        return 0.5
-    value = float(matches[0])
-    if value > 1.0:
-        value /= 100.0
-    return max(0.0, min(1.0, value))
